@@ -34,7 +34,6 @@ if (!fs.existsSync("secret")) {
     fs.mkdirSync("secret");
 }
 
-
 let isLogin = false;
 let authCookie = "", userData = {};
 
@@ -45,12 +44,12 @@ const Login = async () => {
             Authorization: 'Basic ' + Buffer.from(encodeURIComponent(config.authentication.email) + ":" + encodeURIComponent(config.authentication.password)).toString("base64")
         },
     }).then((r) => {
-        if (r.ok) {
+        if (r.status == 200) {
             fs.writeFileSync("secret/authCookie.txt", r.headers.get("Set-Cookie").match(/auth=(.*?);/)[1]);
+            isLogin = true;
             return r.json();
         }
     }).then((json) => {
-        isLogin = true;
         userData = json;
     });
 }
@@ -71,7 +70,7 @@ const Notice = async (title, body) => {
         })
     }).then((r) => {
         // console.log("["+r.status+"] "+r.statusText);
-        if (r.ok) {
+        if (r.status == 200) {
             return r.json();
         }
     }).then((json) => {
@@ -94,18 +93,18 @@ const Main = async () => {
             Cookie: "auth=" + authCookie
         }
     }).then((r) => {
-        if (r.ok) {
+        if (r.status == 200) {
+            isLogin = true;
             return r.json();
         }
     }).then((json) => {
-        isLogin = true;
         userData = json;
     });
 
     console.log("Login check: " + Msg.YesNo(isLogin));
 
     if (!isLogin) {
-        Login();
+        await Login();
     }
 
     if (!isLogin) {
