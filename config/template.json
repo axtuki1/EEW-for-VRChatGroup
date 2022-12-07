@@ -1,0 +1,22 @@
+{
+    // APIにアクセスするためのKey。(基本触らない)
+    "apiKey": "JlE5Jldo5Jibnk5O5hTx6XVqsJu4WJ26",
+    // お知らせを投稿するアカウント情報
+    "authentication":{
+        "email": "",
+        "password": ""
+    },
+    // グループID
+    "groupId": "grp_xxxxxxxxxxxxxxxxxxxxxxxx",
+    // 新強震モニタ設定
+    "Kmoni": {
+        // 取得しに行く間隔(秒)
+        "Timeout": 1.5,
+        // データ取得先: ${timestamp} -> YYYYMMDDhhmmss
+        "DataURL": "http://www.kmoni.bosai.go.jp/webservice/hypo/eew/${timestamp}.json",
+        // 試験データ待受ポート
+        "TestDataPort": 36579,
+        // 更新理由の表示
+        "UpdateReason": true
+    }
+}
