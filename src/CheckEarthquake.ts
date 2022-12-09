@@ -90,10 +90,10 @@ export class CheckEarthquake {
         }
     }
     public SendData(data) {
-        const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1/$2/$3 $4:$5:$6");
+        const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         this.callback(
             "緊急地震速報",
-            (data.is_training ? "--訓練-- ":"") + "[" +(data.is_cancel ? "キャンセル" : (data.is_final ? "最終報" : "第" + data.report_num + "報")) + "] \n"+data.region_name+" 最大震度" + data.calcintensity + " 深さ" + data.depth + " \n" + origin_time + " 発生"
+            (data.is_training ? "--訓練-- ":"") + (data.alertflg == "警報" ? "!警報! ":"") + "[" +(data.is_cancel ? "キャンセル" : (data.is_final ? "最終報" : "第" + data.report_num + "報")) + "] \n"+data.region_name+" 最大震度" + data.calcintensity + " 深さ" + data.depth + " \n" + origin_time + " 発生"
         );
     }
 }
