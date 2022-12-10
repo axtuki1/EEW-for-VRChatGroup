@@ -43,10 +43,11 @@ export class CheckEarthquake {
         const URL = config.Kmoni.DataURL;
         this.intervalTimer = setInterval(async () => {
             const nowDate = new Date();
+            nowDate.setSeconds(nowDate.getSeconds() - 2);
             const currentURL = URL.replace(
                 '${timestamp}',
                 "" + nowDate.getFullYear() + (nowDate.getMonth() + 1).toString().padStart(2, "0") + nowDate.getDate().toString().padStart(2, "0") +
-                nowDate.getHours().toString().padStart(2, "0") + nowDate.getMinutes().toString().padStart(2, "0") + (nowDate.getSeconds() - 2).toString().padStart(2, "0")
+                nowDate.getHours().toString().padStart(2, "0") + nowDate.getMinutes().toString().padStart(2, "0") + (nowDate.getSeconds()).toString().padStart(2, "0")
             );
             this.lastRequestURL = currentURL;
             try {
