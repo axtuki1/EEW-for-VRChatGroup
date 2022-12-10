@@ -123,9 +123,11 @@ const Main = async () => {
         return res.send("ok...");
     });
 
-    router.get(endpoint, (req, res) => {
-        return res.send("POST only");
-    });
+    timer.WebAPI(router);
+
+    app.use(express.static('public'));
+
+    app.use("/js", express.static('./build/public'));
 
     app.use(router);
 

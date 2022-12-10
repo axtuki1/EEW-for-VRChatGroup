@@ -11,6 +11,8 @@ export class CheckEarthquake {
     private intervalTimer: NodeJS.Timer;
     private callback: Function;
     private lastData;
+    private lastRequestURL;
+    private lastResponse;
     public intensityTable = {
         "1": 1,
         "2": 2,
@@ -46,6 +48,7 @@ export class CheckEarthquake {
                 "" + nowDate.getFullYear() + (nowDate.getMonth() + 1).toString().padStart(2, "0") + nowDate.getDate().toString().padStart(2, "0") +
                 nowDate.getHours().toString().padStart(2, "0") + nowDate.getMinutes().toString().padStart(2, "0") + (nowDate.getSeconds() - 2).toString().padStart(2, "0")
             );
+            this.lastRequestURL = currentURL;
             try {
                 const response = await fetch(currentURL).then(r => r.json()).then(json => json);
                 this.DataProcess(response);
@@ -58,6 +61,7 @@ export class CheckEarthquake {
         clearInterval(this.intervalTimer);
     }
     public DataProcess(data) {
+        this.lastResponse = data;
         let update = false, reason = "";
         if (this.intensityTable[data.calcintensity] < this.noticeIntensity && Number(this.lastData.report_id) != Number(data.report_id)) {
             return;
@@ -95,5 +99,13 @@ export class CheckEarthquake {
             "緊急地震速報",
             (data.is_training ? "--訓練-- ":"") + (data.alertflg == "警報" ? "!警報! ":"") + "[" +(data.is_cancel ? "キャンセル" : (data.is_final ? "最終報" : "第" + data.report_num + "報")) + "] \n"+data.region_name+" 最大震度" + data.calcintensity + " 深さ" + data.depth + " \n" + origin_time + " 発生"
         );
+    }
+    public WebAPI(router) {
+        router.get("/api/v1/lastResponse", (req, res) => {
+            res.json({
+                requestURL: this.lastRequestURL,
+                response: this.lastResponse
+            });
+        });
     }
 }
