@@ -51,10 +51,19 @@ const Login = async () => {
         }
     }).then((json) => {
         userData = json;
+    }).catch((e) => {
     });
 }
 
 const Notice = async (title, body) => {
+    if (!isLogin) {
+        console.log("ReLogin");
+        await Login();
+        if (!isLogin) {
+            console.log("Cancel");
+            return;
+        }
+    }
     console.log("Sending VRChat server....");
     await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/announcement", {
         method: "POST",
@@ -76,6 +85,7 @@ const Notice = async (title, body) => {
     }).then((json) => {
         // console.log(json);
     }).catch((e) => {
+        isLogin = false;
         console.log(e);
     });
 }
@@ -99,7 +109,9 @@ const Main = async () => {
         }
     }).then((json) => {
         userData = json;
-    });
+    }).catch((e) => {
+        console.log(e);
+    });;
 
     console.log("Login check: " + Msg.YesNo(isLogin));
 
