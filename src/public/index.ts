@@ -8,6 +8,13 @@
             req.innerHTML = json.requestURL;
         });
     }
+
+    const test = () => {
+        fetch("./api/v1/testAnnounce").then(r => r.json()).then((json) => {
+            console.log("ok");
+        });
+    }
     
     document.getElementById("updateBtn").addEventListener("click", update);
+    document.getElementById("testBtn").addEventListener("click", test);
 })();

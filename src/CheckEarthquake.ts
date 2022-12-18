@@ -98,7 +98,8 @@ export class CheckEarthquake {
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         this.callback(
             "緊急地震速報",
-            (data.is_training ? "--訓練-- ":"") + (data.alertflg == "警報" ? "!警報! ":"") + "[" +(data.is_cancel ? "キャンセル" : (data.is_final ? "最終報" : "第" + data.report_num + "報")) + "] \n"+data.region_name+" 最大震度" + data.calcintensity + " 深さ" + data.depth + " \n" + origin_time + " 発生"
+            (data.is_training ? "--訓練-- " : "") + (data.alertflg == "警報" ? "!警報! " : "") + "[" + (data.is_cancel ? "キャンセル" : (data.is_final ? "最終報" : "第" + data.report_num + "報")) + "] \n" + data.region_name + " 最大震度" + data.calcintensity + " 深さ" + data.depth + " \n" + origin_time + " 発生",
+            true
         );
     }
     public WebAPI(router) {
@@ -106,6 +107,15 @@ export class CheckEarthquake {
             res.json({
                 requestURL: this.lastRequestURL,
                 response: this.lastResponse
+            });
+        });
+        router.get("/api/v1/testAnnounce", async (req, res) => {
+            await this.callback(
+                "試験放送",
+                "こちらはテスト用のメッセージです。"
+            )
+            res.json({
+                "result": "ok"
             });
         });
     }

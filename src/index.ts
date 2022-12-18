@@ -55,7 +55,7 @@ const Login = async () => {
     });
 }
 
-const Notice = async (title, body) => {
+const Notice = async (title, body, isNotice = false) => {
     if (!isLogin) {
         console.log("ReLogin");
         await Login();
@@ -75,7 +75,7 @@ const Notice = async (title, body) => {
             text: body,
             title: title,
             imageId: null,
-            sendNotification: true
+            sendNotification: isNotice
         })
     }).then((r) => {
         // console.log("["+r.status+"] "+r.statusText);
