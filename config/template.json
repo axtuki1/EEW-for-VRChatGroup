@@ -18,5 +18,12 @@
         "TestDataPort": 36579,
         // 更新理由の表示
         "UpdateReason": true
-    }
+    },
+    "settings":{
+        // 通知を行う最小震度
+        "noticeIntensity": "4"
+    },
+    "OTPValue": "",
+    // 連絡先
+    "contact": ""
 }
