@@ -35,24 +35,77 @@ if (!fs.existsSync("secret")) {
 }
 
 let isLogin = false;
-let authCookie = "", userData = {};
+let authCookie = "", twoFactorAuth = "", userData = {};
+
+const DEBUGLOG = (sender, value) => {
+    if (!config.debug) return;
+    console.log("[" + sender + "]--------");
+    console.log(value);
+}
 
 const Login = async () => {
+    let isTwoFactorAuth = false, otpType = [];
     await fetch("https://api.vrchat.cloud/api/1/auth/user", {
         headers: {
+            "Content-Type": "application/json",
+            "Cookie": "apiKey=" + config.apiKey,
             credentials: "same-origin",
             Authorization: 'Basic ' + Buffer.from(encodeURIComponent(config.authentication.email) + ":" + encodeURIComponent(config.authentication.password)).toString("base64")
         },
     }).then((r) => {
+        DEBUGLOG("Login, user header", r);
         if (r.status == 200) {
             fs.writeFileSync("secret/authCookie.txt", r.headers.get("Set-Cookie").match(/auth=(.*?);/)[1]);
             isLogin = true;
             return r.json();
         }
     }).then((json) => {
+        DEBUGLOG("Login, user", json);
+        if (json.requiresTwoFactorAuth) {
+            isLogin = false;
+            isTwoFactorAuth = true;
+            otpType = json.requiresTwoFactorAuth;
+            console.log("Requires TwoFactorAuth");
+            return;
+        }
         userData = json;
     }).catch((e) => {
     });
+    if (isTwoFactorAuth) {
+        for (let i = 0; i < otpType.length; i++) {
+            // OTP
+            await fetch("https://api.vrchat.cloud/api/1/auth/twofactorauth/" + otpType[i] + "/verify", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Cookie": "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
+                },
+                body: JSON.stringify({
+                    "code": config.OTPValue
+                })
+            }).then((r) => {
+                DEBUGLOG("Login, otp header", r);
+                if (r.status == 200) {
+                    isLogin = true;
+                    fs.writeFileSync("secret/twoFactorAuth.txt", r.headers.get("Set-Cookie").match(/twoFactorAuth=(.*?);/)[1]);
+                    return r.json();
+                }
+                return r.json();
+            }).then((json) => {
+                if (json == undefined || json.length == 0) return;
+                DEBUGLOG("Login, otp", json);
+                if (json.requiresTwoFactorAuth) {
+                    isLogin = false;
+                    console.log("TwoFactorAuth failed...");
+                    return;
+                }
+                userData = json;
+            }).catch((e) => {
+                console.log(e);
+            });
+            if (isLogin) break;
+        }
+    }
 }
 
 const Notice = async (title, body, isNotice = false) => {
@@ -69,7 +122,8 @@ const Notice = async (title, body, isNotice = false) => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            Cookie: "auth=" + authCookie,
+            "User-Agent": package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
         },
         body: JSON.stringify({
             text: body,
@@ -78,12 +132,12 @@ const Notice = async (title, body, isNotice = false) => {
             sendNotification: isNotice
         })
     }).then((r) => {
-        // console.log("["+r.status+"] "+r.statusText);
+        if (config.debug) console.log("[" + r.status + "] " + r.statusText);
         if (r.status == 200) {
             return r.json();
         }
     }).then((json) => {
-        // console.log(json);
+        if (config.debug) console.log(json);
     }).catch((e) => {
         isLogin = false;
         console.log(e);
@@ -96,22 +150,32 @@ const Main = async () => {
     if (fs.existsSync("secret/authCookie.txt")) {
         authCookie = fs.readFileSync("secret/authCookie.txt", "utf-8");
     }
+    if (fs.existsSync("secret/twoFactorAuth.txt")) {
+        twoFactorAuth = fs.readFileSync("secret/twoFactorAuth.txt", "utf-8");
+    }
 
     // ログイン確認
     await fetch("https://api.vrchat.cloud/api/1/auth/user", {
         headers: {
-            Cookie: "auth=" + authCookie
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
         }
     }).then((r) => {
+        DEBUGLOG("Main, Cookiecheck header", r);
         if (r.status == 200) {
             isLogin = true;
             return r.json();
         }
     }).then((json) => {
+        if (json == undefined) return;
+        DEBUGLOG("Main, Cookiecheck", json);
+        if (json.requiresTwoFactorAuth) {
+            isLogin = false;
+            return;
+        }
         userData = json;
     }).catch((e) => {
         console.log(e);
-    });;
+    });
 
     console.log("Login check: " + Msg.YesNo(isLogin));
 
@@ -121,6 +185,7 @@ const Main = async () => {
 
     if (!isLogin) {
         console.log("Login failed...");
+        if (!config.debug) return;
     } else {
         console.log("Login Success!");
     }

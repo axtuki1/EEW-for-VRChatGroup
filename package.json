@@ -12,7 +12,8 @@
     "build": "tsc",
     "buildAndRun": "npm run build && npm run start"
   },
-  "author": "",
+  "github": "https://github.com/axtuki1/EEW-for-VRChatGroup",
+  "author": "axtuki1",
   "license": "MIT",
   "dependencies": {
     "@types/node": "^18.11.10",
