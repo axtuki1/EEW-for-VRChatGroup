@@ -96,17 +96,36 @@ export class CheckEarthquake {
     }
     public SendData(data) {
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
-        this.callback(
-            "緊急地震速報",
-            (data.is_training ? "--訓練-- " : "") + (data.alertflg == "警報" ? "!警報! " : "") + "[" + (data.is_cancel ? "キャンセル" : (data.is_final ? "最終報" : "第" + data.report_num + "報")) + "] \n" + data.region_name + " 最大震度" + data.calcintensity + " 深さ" + data.depth + " \n" + origin_time + " 発生",
-            true
+        let sendMsg = config.settings.sendMsg;
+        sendMsg = sendMsg.replaceAll("${isTraining}", data.is_training ? "--訓練-- " : "");
+        sendMsg = sendMsg.replaceAll("${alertFlg}", data.alertflg == "警報" ? "!警報! " : "");
+        sendMsg = sendMsg.replaceAll(
+            "${report_num}",
+            data.is_cancel ? "キャンセル" : (
+                data.is_final ? "最終報" : "第" + data.report_num + "報"
+            )
         );
+        sendMsg = sendMsg.replaceAll("${region_name}", data.region_name);
+        sendMsg = sendMsg.replaceAll("${intensity}", data.calcintensity);
+        sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
+        sendMsg = sendMsg.replaceAll("${depth}", data.depth);
+        sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
+        this.callback("緊急地震速報",sendMsg,true);
     }
     public WebAPI(router) {
         router.get("/api/v1/lastResponse", (req, res) => {
             res.json({
                 requestURL: this.lastRequestURL,
                 response: this.lastResponse
+            });
+        });
+        router.post("/api/v1/testDataInput", (req, res) => {
+            const data = req.body;
+            data.is_training = true;
+            data.region_name = "[試験データ]" + data.region_name;
+            this.SendData(data);
+            res.json({
+                status: "ok"
             });
         });
         router.get("/api/v1/testAnnounce", async (req, res) => {
