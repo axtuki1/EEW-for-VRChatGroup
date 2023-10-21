@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import { Msg } from "./util/msg";
 import { CheckEarthquake } from "./CheckEarthquake";
+import * as OTPAuth from "otpauth";
 const { parse } = require("jsonc-parser");
 const config = (() => {
     const json = fs.readFileSync("./config/config.json");
@@ -43,6 +44,13 @@ const DEBUGLOG = (sender, value) => {
     console.log(value);
 }
 
+let totpObj: OTPAuth.TOTP | OTPAuth.HOTP = null;
+
+if (config.authentication.OTP != null && config.authentication.OTP.URI != null) {
+    totpObj = OTPAuth.URI.parse(config.authentication.OTP.URI);
+}
+
+
 const Login = async () => {
     let isTwoFactorAuth = false, otpType = [];
     await fetch("https://api.vrchat.cloud/api/1/auth/user", {
@@ -55,7 +63,8 @@ const Login = async () => {
     }).then((r) => {
         DEBUGLOG("Login, user header", r);
         if (r.status == 200) {
-            fs.writeFileSync("secret/authCookie.txt", r.headers.get("Set-Cookie").match(/auth=(.*?);/)[1]);
+            authCookie = r.headers.get("Set-Cookie").match(/auth=(.*?);/)[1];
+            fs.writeFileSync("secret/authCookie.txt", authCookie);
             isLogin = true;
             return r.json();
         }
@@ -73,7 +82,12 @@ const Login = async () => {
     });
     if (isTwoFactorAuth) {
         for (let i = 0; i < otpType.length; i++) {
-            // OTP
+            // OTP 汚いので書き直したい。
+            let token = config.OTPValue;
+            if (totpObj != null && otpType[i] == "totp") {
+                token = totpObj.generate();
+            }
+            console.log("Try auth: " + otpType[i] + " / " + token);
             await fetch("https://api.vrchat.cloud/api/1/auth/twofactorauth/" + otpType[i] + "/verify", {
                 method: "POST",
                 headers: {
@@ -81,13 +95,14 @@ const Login = async () => {
                     "Cookie": "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
                 },
                 body: JSON.stringify({
-                    "code": config.OTPValue
+                    "code": token
                 })
             }).then((r) => {
                 DEBUGLOG("Login, otp header", r);
                 if (r.status == 200) {
                     isLogin = true;
-                    fs.writeFileSync("secret/twoFactorAuth.txt", r.headers.get("Set-Cookie").match(/twoFactorAuth=(.*?);/)[1]);
+                    twoFactorAuth = r.headers.get("Set-Cookie").match(/twoFactorAuth=(.*?);/)[1];
+                    fs.writeFileSync("secret/twoFactorAuth.txt", twoFactorAuth);
                     return r.json();
                 }
                 return r.json();
