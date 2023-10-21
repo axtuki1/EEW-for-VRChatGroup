@@ -3,8 +3,15 @@
     "apiKey": "JlE5Jldo5Jibnk5O5hTx6XVqsJu4WJ26",
     // お知らせを投稿するアカウント情報
     "authentication":{
+        // ユーザ名
         "email": "",
-        "password": ""
+        // パスワード
+        "password": "",
+        // 二要素認証
+        "OTP": {
+            // otpauth://totp/... で始まるVRChat設定ページで発行されるQRコードの値。
+            "URI": "otpauth://totp/VRChat:EMail@Address?secret=xxxxxxxx&issuer=VRChat" 
+        }
     },
     // グループID
     "groupId": "grp_xxxxxxxxxxxxxxxxxxxxxxxx",
@@ -24,7 +31,7 @@
         "noticeIntensity": "4",
         "sendMsg": "${isTraining}${alertFlg}[${report_num}] \n${region_name} 最大震度${intensity} M${magunitude} 深さ${depth} \n${origin_time} 発生"
     },
-    "OTPValue": "",
+    "OTPValue": "", // 削除予定。メール認証もしくはアカウント情報内のOTP項目が空の場合に使用する。
     // 連絡先
     "contact": ""
 }
