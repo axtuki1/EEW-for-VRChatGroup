@@ -8,7 +8,7 @@ const config = (() => {
 
 export class CheckEarthquake {
 
-    private intervalTimer: NodeJS.Timer;
+    private intervalTimer: NodeJS.Timeout;
     private callback: Function;
     private lastData;
     private lastRequestURL;
