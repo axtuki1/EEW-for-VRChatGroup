@@ -110,7 +110,7 @@ export class CheckEarthquake {
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback("緊急地震速報",sendMsg,true);
+        this.callback(config.settings.sendTitle,sendMsg,true);
     }
     public WebAPI(router) {
         router.get("/api/v1/lastResponse", (req, res) => {
