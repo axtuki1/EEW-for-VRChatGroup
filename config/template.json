@@ -29,7 +29,8 @@
     "settings":{
         // 通知を行う最小震度
         "noticeIntensity": "4",
-        "sendMsg": "${isTraining}${alertFlg}[${report_num}] \n${region_name} 最大震度${intensity} M${magunitude} 深さ${depth} \n${origin_time} 発生"
+        "sendTitle": "緊急地震速報",
+        "sendMsg": "${isTraining}${alertFlg}[${report_num}]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生"
     },
     "OTPValue": "", // 削除予定。メール認証もしくはアカウント情報内のOTP項目が空の場合に使用する。
     // 連絡先
