@@ -123,6 +123,66 @@ const Login = async () => {
     }
 }
 
+const GetPostList = async () => {
+    if (!isLogin) {
+        console.log("ReLogin");
+        await Login();
+        if (!isLogin) {
+            console.log("Cancel");
+            return;
+        }
+    }
+    console.log("GetPostList....");
+    return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts?n=15&offset=0", {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
+        },
+        body: null
+    }).then((r) => {
+        if (config.debug) console.log("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        console.log(e);
+    });
+}
+
+const PostRemove = async (postId) => {
+    if (!isLogin) {
+        console.log("ReLogin");
+        await Login();
+        if (!isLogin) {
+            console.log("Cancel");
+            return;
+        }
+    }
+    console.log("PostRemoving...");
+    return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts/"+postId, {
+        method: "DELETE",
+        headers: {
+            "Content-Type": "application/json",
+            "User-Agent": package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
+        },
+        body: null
+    }).then((r) => {
+        if (config.debug) console.log("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).then((json) => {
+        if (config.debug) console.log(json);
+    }).catch((e) => {
+        isLogin = false;
+        console.log(e);
+    });
+}
+
 const Notice = async (title, body, isNotice = false) => {
     if (!isLogin) {
         console.log("ReLogin");
@@ -133,7 +193,7 @@ const Notice = async (title, body, isNotice = false) => {
         }
     }
     console.log("Sending VRChat server....");
-    await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/announcement", {
+    await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -159,6 +219,15 @@ const Notice = async (title, body, isNotice = false) => {
     });
 }
 
+const UpdatePost = async (title, body, isNotice = false) => {
+    const alllist = GetPostList();
+    const list = await alllist;
+    if (config.debug) console.log(list);
+    list["posts"].filter((post) => post.title == title).forEach(async post => {
+        await PostRemove(post.id);
+    });
+    Notice(title, body, isNotice);
+}
 
 const Main = async () => {
 
@@ -205,7 +274,7 @@ const Main = async () => {
         console.log("Login Success!");
     }
 
-    const timer = new CheckEarthquake(Notice);
+    const timer = new CheckEarthquake(UpdatePost);
     timer.Start();
 
     router.post(endpoint, (req, res) => {
