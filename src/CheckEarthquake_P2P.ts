@@ -2,6 +2,7 @@ import * as fs from "fs";
 import { clearInterval } from "timers";
 import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
+import rndstr from "rndstr";
 const WebSocket = require("ws");
 const { parse } = require("jsonc-parser");
 const config = (() => {
@@ -9,7 +10,7 @@ const config = (() => {
     return parse(json.toString());
 })();
 
-export class CheckEarthquake_P2P extends CheckEarthquake{
+export class CheckEarthquake_P2P extends CheckEarthquake {
 
     private recvIds = [];
     private lastRequestURL;
@@ -18,7 +19,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
     private logger;
     public intensityTable = {
         "-1": 1,
-         "0": 2,
+        "0": 2,
         "10": 3,
         "20": 4,
         "30": 5,
@@ -31,24 +32,43 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
     };
     public noticeIntensity = 6;
     public intensityNameMaster = {
-       "-1": "不明",
-       "0": "0",
-       "10": "1",
-       "20": "2",
-       "30": "3",
-       "40": "4",
-       "50": "5弱",
-       "55": "5強",
-       "60": "6弱",
-       "65": "6強",
-       "70": "7",
+        "-1": "不明",
+        "0": "0",
+        "10": "1",
+        "20": "2",
+        "30": "3",
+        "40": "4",
+        "50": "5弱",
+        "55": "5強",
+        "60": "6弱",
+        "65": "6強",
+        "70": "7",
     }
-    
+    private retryCount = 0;
+
     private func = {
         551: (inputData) => { // JMAQuake 地震情報
-            
+
         },
         556: (inputData) => { // EEW
+            let data = {
+                is_training: inputData.test,
+                alertflg: true,
+                is_cancel: inputData.cancelled,
+                region_name: "-",
+                intensity: "-",
+                magunitude: "-",
+                depth: "-",
+                origin_time: inputData.issue.time
+            };
+            if (!inputData.cancelled) {
+                data.region_name = inputData.earthquake.name;
+                data.intensity = inputData.areas.reduce((a,b)=>Math.max(a.scaleTo,b.scaleTo));
+                data.magunitude = inputData.earthquake.magnitude;
+                data.depth = inputData.earthquake.depth + "km";
+                data.origin_time = inputData.earthquake.originTime
+            }
+            this.SendData(data);
             /**
              * {
              *   id: "情報を一意に識別するID",
@@ -98,10 +118,12 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
     }
     public connect() {
         if (this.connection != null && this.connection.readyState == 1) this.connection.close();
+        this.retryCount++;
         this.lastRequestURL = config.P2P.DataURL;
         this.connection = new WebSocket(config.P2P.DataURL);
         this.connection.addEventListener("open", (e) => {
             this.logger.log("Connected!");
+            this.retryCount = 0;
         });
         this.connection.addEventListener("message", (e) => {
             const data = JSON.parse(e.data);
@@ -111,6 +133,11 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
         });
         this.connection.addEventListener("close", (e) => {
             this.logger.log("Connection closed.");
+            this.logger.log("retry delay... [" + config.P2P.NextReconnectDelay + "s]");
+            setTimeout(() => {
+                this.logger.log("Trying reconnect.... [" + this.retryCount + "]");
+                this.connect();
+            }, config.P2P.NextReconnectDelay * 1000);
         });
         this.connection.addEventListener("error", console.error);
     }
@@ -130,6 +157,17 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
     public DataProcess(data) {
         const func = this.func[data.code];
         if (func != null) func(data);
+        if (config.gatherData) {
+            let nowTime = new Date().toLocaleDateString("ja-JP", {
+                year: "numeric", month: "2-digit",
+                day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"
+            });
+            if (!fs.existsSync("secret/gather")) {
+                fs.mkdirSync("secret/gather");
+            }
+            let time = nowTime.replace(/([0-9]{4})\/([0-9]{2})\/([0-9]{2}) ([0-9]{2}):([0-9]{2}):([0-9]{2})/g, "$1-$2-$3_$4-$5-$6");
+            fs.writeFileSync(`secret/gather/${time}-${rndstr("0123456789", 4)}.json`, JSON.stringify(data, null, 3));
+        }
         // if (update && data.report_id != "") {
         //     this.lastData = {
         //         report_id: data.report_id,
@@ -159,7 +197,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback(config.settings.sendTitle,sendMsg,true);
+        this.callback(config.settings.sendTitle, sendMsg, true);
     }
     public WebAPI(router) {
         router.get("/api/v1/reconnect", (req, res) => {
@@ -194,5 +232,5 @@ export class CheckEarthquake_P2P extends CheckEarthquake{
         });
     }
 
-    
+
 }
