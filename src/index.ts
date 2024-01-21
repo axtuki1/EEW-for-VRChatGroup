@@ -1,7 +1,10 @@
 import * as fs from "fs";
 import { Msg } from "./util/msg";
-import { CheckEarthquake } from "./CheckEarthquake";
+import { CheckEarthquake_Kmoni } from "./CheckEarthquake_Kmoni";
+import { CheckEarthquake_P2P } from "./CheckEarthquake_P2P";
 import * as OTPAuth from "otpauth";
+import { CheckEarthquake } from "./CheckEarthquake";
+import { Logger } from "./util/logger";
 const { parse } = require("jsonc-parser");
 const config = (() => {
     const json = fs.readFileSync("./config/config.json");
@@ -9,7 +12,7 @@ const config = (() => {
 })();
 const bodyParser = require('body-parser');
 const port = process.env.PORT || config.serverPort || 36578;
-const KmoniTestDataPort = process.env.PORT || config.Kmoni.TestDataPort || 36579;
+const TestDataPort = process.env.PORT || config.TestDataPort || 36579;
 const wsPort = process.env.PORT || config.websocketPort || 3000;
 const package_json = require('../package.json');
 const isProxy = Boolean(process.env.IS_PROXY) || config.isPorxy || false;
@@ -52,6 +55,7 @@ if (config.authentication.OTP != null && config.authentication.OTP.URI != null) 
 
 
 const Login = async () => {
+    let logger = new Logger("API:Login");
     let isTwoFactorAuth = false, otpType = [];
     await fetch("https://api.vrchat.cloud/api/1/auth/user", {
         headers: {
@@ -74,7 +78,7 @@ const Login = async () => {
             isLogin = false;
             isTwoFactorAuth = true;
             otpType = json.requiresTwoFactorAuth;
-            console.log("Requires TwoFactorAuth");
+            logger.log("Requires TwoFactorAuth");
             return;
         }
         userData = json;
@@ -87,7 +91,7 @@ const Login = async () => {
             if (totpObj != null && otpType[i] == "totp") {
                 token = totpObj.generate();
             }
-            console.log("Try auth: " + otpType[i] + " / " + token);
+            logger.log("Try auth: " + otpType[i] + " / " + token);
             await fetch("https://api.vrchat.cloud/api/1/auth/twofactorauth/" + otpType[i] + "/verify", {
                 method: "POST",
                 headers: {
@@ -111,12 +115,12 @@ const Login = async () => {
                 DEBUGLOG("Login, otp", json);
                 if (json.requiresTwoFactorAuth) {
                     isLogin = false;
-                    console.log("TwoFactorAuth failed...");
+                    logger.log("TwoFactorAuth failed...");
                     return;
                 }
                 userData = json;
             }).catch((e) => {
-                console.log(e);
+                logger.log(e);
             });
             if (isLogin) break;
         }
@@ -124,15 +128,16 @@ const Login = async () => {
 }
 
 const GetPostList = async () => {
+    let logger = new Logger("API:PostList");
     if (!isLogin) {
-        console.log("ReLogin");
+        logger.log("ReLogin");
         await Login();
         if (!isLogin) {
-            console.log("Cancel");
+            logger.log("Cancel");
             return;
         }
     }
-    console.log("GetPostList....");
+    logger.log("GetPostList....");
     return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts?n=15&offset=0", {
         method: "GET",
         headers: {
@@ -142,26 +147,27 @@ const GetPostList = async () => {
         },
         body: null
     }).then((r) => {
-        if (config.debug) console.log("[" + r.status + "] " + r.statusText);
+        if (config.debug) logger.log("[" + r.status + "] " + r.statusText);
         if (r.status == 200) {
             return r.json();
         }
     }).catch((e) => {
         isLogin = false;
-        console.log(e);
+        logger.log(e);
     });
 }
 
 const PostRemove = async (postId) => {
+    let logger = new Logger("API:PostRemove");
     if (!isLogin) {
-        console.log("ReLogin");
+        logger.log("ReLogin");
         await Login();
         if (!isLogin) {
             console.log("Cancel");
             return;
         }
     }
-    console.log("PostRemoving...");
+    logger.log("PostRemoving...");
     return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts/"+postId, {
         method: "DELETE",
         headers: {
@@ -171,28 +177,29 @@ const PostRemove = async (postId) => {
         },
         body: null
     }).then((r) => {
-        if (config.debug) console.log("[" + r.status + "] " + r.statusText);
+        if (config.debug) logger.log("[" + r.status + "] " + r.statusText);
         if (r.status == 200) {
             return r.json();
         }
     }).then((json) => {
-        if (config.debug) console.log(json);
+        if (config.debug) logger.log(json);
     }).catch((e) => {
         isLogin = false;
-        console.log(e);
+        logger.log(e);
     });
 }
 
 const Notice = async (title, body, isNotice = false) => {
+    let logger = new Logger("API:Notice");
     if (!isLogin) {
-        console.log("ReLogin");
+        logger.log("ReLogin");
         await Login();
         if (!isLogin) {
-            console.log("Cancel");
+            logger.log("Cancel");
             return;
         }
     }
-    console.log("Sending VRChat server....");
+    logger.log("Sending VRChat server....");
     await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts", {
         method: "POST",
         headers: {
@@ -215,7 +222,7 @@ const Notice = async (title, body, isNotice = false) => {
         if (config.debug) console.log(json);
     }).catch((e) => {
         isLogin = false;
-        console.log(e);
+        logger.log(e);
     });
 }
 
@@ -230,6 +237,8 @@ const UpdatePost = async (title, body, isNotice = false) => {
 }
 
 const Main = async () => {
+    
+    let logger = new Logger("Main");
 
     if (fs.existsSync("secret/authCookie.txt")) {
         authCookie = fs.readFileSync("secret/authCookie.txt", "utf-8");
@@ -258,23 +267,29 @@ const Main = async () => {
         }
         userData = json;
     }).catch((e) => {
-        console.log(e);
+        logger.log(e);
     });
 
-    console.log("Login check: " + Msg.YesNo(isLogin));
+    logger.log("Login check: " + Msg.YesNo(isLogin));
 
     if (!isLogin) {
         await Login();
     }
 
     if (!isLogin) {
-        console.log("Login failed...");
+        logger.log("Login failed...");
         if (!config.debug) return;
     } else {
-        console.log("Login Success!");
+        logger.log("Login Success!");
     }
 
-    const timer = new CheckEarthquake(UpdatePost);
+    let timer: CheckEarthquake = null;
+    if (config.DataSource == "Kmoni") {
+        timer = new CheckEarthquake_Kmoni(UpdatePost);
+    } else {
+        timer = new CheckEarthquake_P2P(UpdatePost);
+        
+    }
     timer.Start();
 
     router.post(endpoint, (req, res) => {
@@ -292,8 +307,8 @@ const Main = async () => {
 
     app.use(router);
 
-    app.listen(KmoniTestDataPort, function () {
-        console.log("試験データ待受ポート: " + KmoniTestDataPort);
+    app.listen(TestDataPort, function () {
+        console.log("試験データ待受ポート: " + TestDataPort);
     });
 
 }

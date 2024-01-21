@@ -2,7 +2,7 @@
     // APIにアクセスするためのKey。(基本触らない)
     "apiKey": "JlE5Jldo5Jibnk5O5hTx6XVqsJu4WJ26",
     // お知らせを投稿するアカウント情報
-    "authentication":{
+    "authentication": {
         // ユーザ名
         "email": "",
         // パスワード
@@ -10,27 +10,39 @@
         // 二要素認証
         "OTP": {
             // otpauth://totp/... で始まるVRChat設定ページで発行されるQRコードの値。
-            "URI": "otpauth://totp/VRChat:EMail@Address?secret=xxxxxxxx&issuer=VRChat" 
+            "URI": "otpauth://totp/VRChat:EMail@Address?secret=xxxxxxxx&issuer=VRChat"
         }
     },
     // グループID
     "groupId": "grp_xxxxxxxxxxxxxxxxxxxxxxxx",
+    // データ取得元
+    // P2P: P2P地震情報
+    // Kmoni: 新強震モニタ(非推奨)
+    "DataSource": "P2P",
+    "P2P": {
+        // 切断時再度接続するまでの待ち時間
+        "NextReconnectDelay": 5,
+        // WebSocket接続先
+        "DataURL": "wss://api.p2pquake.net/v2/ws"
+    },
     // 新強震モニタ設定
     "Kmoni": {
         // 取得しに行く間隔(秒)
         "Timeout": 1.5,
         // データ取得先: ${timestamp} -> YYYYMMDDhhmmss
         "DataURL": "http://www.kmoni.bosai.go.jp/webservice/hypo/eew/${timestamp}.json",
-        // 試験データ待受ポート
-        "TestDataPort": 36579,
-        // 更新理由の表示
-        "UpdateReason": true
     },
-    "settings":{
+    // 試験データ待受ポート
+    "TestDataPort": 36579,
+    "settings": {
         // 通知を行う最小震度
         "noticeIntensity": "4",
+        // タイトル
         "sendTitle": "緊急地震速報",
-        "sendMsg": "${isTraining}${alertFlg}[${report_num}]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生"
+        // 書式
+        "sendMsg": "${isTraining}${alertFlg}[${report_num}]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生",
+        // 更新理由の表示
+        "UpdateReason": true,
     },
     "OTPValue": "", // 削除予定。メール認証もしくはアカウント情報内のOTP項目が空の場合に使用する。
     // 連絡先
