@@ -214,9 +214,9 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         });
         router.post("/api/v1/testDataInput", (req, res) => {
             const data = req.body;
-            data.is_training = true;
-            data.region_name = "[試験データ]" + data.region_name;
-            this.SendData(data);
+            data.test = true;
+            data.region_name = "[試験データ]" + data.earthquake.name;
+            this.DataProcess(data);
             res.json({
                 status: "ok"
             });
