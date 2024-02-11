@@ -17,6 +17,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     private lastResponse;
     private connection: WebSocket;
     private logger;
+    private isShutdown;
     public intensityTable = {
         "-1": 1,
         "0": 2,
@@ -50,6 +51,9 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         551: (inputData) => { // JMAQuake 地震情報
 
         },
+        554: (inputData) => { // 緊急地震速報検出
+            this.callback(config.EEWDetectData.Title, config.EEWDetectData.Body, config.EEWDetectData.Popup);
+        },
         556: (inputData) => { // EEW
             let data = {
                 is_training: inputData.test,
@@ -63,7 +67,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
             };
             if (!inputData.cancelled) {
                 data.region_name = inputData.earthquake.name;
-                data.intensity = inputData.areas.reduce((a,b)=>Math.max(a.scaleTo,b.scaleTo));
+                data.intensity = inputData.areas.reduce((a, b) => Math.max(a.scaleTo, b.scaleTo));
                 data.magunitude = inputData.earthquake.magnitude;
                 data.depth = inputData.earthquake.depth + "km";
                 data.origin_time = inputData.earthquake.originTime
@@ -116,6 +120,17 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         // }
         this.logger = new Logger("P2P");
     }
+
+    private idDeadlineTimeSec = 30;
+    private registPostId(id) {
+        this.recvIds.push(id);
+        setTimeout(() => {
+            this.recvIds = this.recvIds.filter(currentId => currentId !== id);
+        }, this.idDeadlineTimeSec * 1000);
+    }
+    private checkPostId(id) {
+        return this.recvIds.indexOf(id) !== -1;
+    }
     public connect() {
         if (this.connection != null && this.connection.readyState == 1) this.connection.close();
         this.retryCount++;
@@ -133,11 +148,13 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         });
         this.connection.addEventListener("close", (e) => {
             this.logger.log("Connection closed.");
-            this.logger.log("retry delay... [" + config.P2P.NextReconnectDelay + "s]");
-            setTimeout(() => {
-                this.logger.log("Trying reconnect.... [" + this.retryCount + "]");
-                this.connect();
-            }, config.P2P.NextReconnectDelay * 1000);
+            if (!this.isShutdown) {
+                this.logger.log("retry delay... [" + config.P2P.NextReconnectDelay + "s]");
+                setTimeout(() => {
+                    this.logger.log("Trying reconnect.... [" + this.retryCount + "]");
+                    this.connect();
+                }, config.P2P.NextReconnectDelay * 1000);
+            }
         });
         this.connection.addEventListener("error", console.error);
     }
@@ -151,10 +168,13 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     }
     public Stop() {
         // 停止時処理...
+        this.isShutdown = true;
         this.connection.close();
     }
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {
+        if (!this.checkPostId(data.id)) return;
+        this.registPostId(data.id);
         const func = this.func[data.code];
         if (func != null) func(data);
         if (config.gatherData) {
@@ -201,7 +221,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     }
     public WebAPI(router) {
         router.get("/api/v1/reconnect", (req, res) => {
-            this.connect();
+            this.connection.close();
             res.json({
                 status: "ok"
             });

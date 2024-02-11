@@ -23,7 +23,13 @@
         // 切断時再度接続するまでの待ち時間
         "NextReconnectDelay": 5,
         // WebSocket接続先
-        "DataURL": "wss://api.p2pquake.net/v2/ws"
+        "DataURL": "wss://api.p2pquake.net/v2/ws",
+        // 緊急地震速報発表検出時の送信内容。
+        "EEWDetectData": {
+            "Ttile": "EEW検出",
+            "Body": "緊急地震速報の発表を検出しました。",
+            "Popup": true
+        }
     },
     // 新強震モニタ設定
     "Kmoni": {
