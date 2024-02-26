@@ -22,6 +22,8 @@
     "P2P": {
         // 切断時再度接続するまでの待ち時間
         "NextReconnectDelay": 5,
+        // 再接続回数の上限
+        "MaxTryConnectCount": 5,
         // WebSocket接続先
         "DataURL": "wss://api.p2pquake.net/v2/ws",
         // 緊急地震速報発表検出時の送信内容。

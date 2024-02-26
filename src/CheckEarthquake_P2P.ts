@@ -49,7 +49,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
 
     private func = {
         551: (inputData) => { // JMAQuake 地震情報
-            
+
         },
         554: (inputData) => { // 緊急地震速報検出
             this.callback(config.EEWDetectData.Title, config.EEWDetectData.Body, config.EEWDetectData.Popup);
@@ -149,11 +149,16 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         this.connection.addEventListener("close", (e) => {
             this.logger.log("Connection closed.");
             if (!this.isShutdown) {
-                this.logger.log("retry delay... [" + config.P2P.NextReconnectDelay + "s]");
-                setTimeout(() => {
-                    this.logger.log("Trying reconnect.... [" + this.retryCount + "]");
-                    this.connect();
-                }, config.P2P.NextReconnectDelay * 1000);
+                if (config.P2P.MaxTryConnectCount >= this.retryCount) {
+                    this.logger.log("retry delay... [" + config.P2P.NextReconnectDelay + "s]");
+                    setTimeout(() => {
+                        this.logger.log("Trying reconnect.... [" + this.retryCount + "]");
+                        this.connect();
+                    }, config.P2P.NextReconnectDelay * 1000);
+                } else {
+                    this.logger.log("Max Try Count....");
+                    this.Stop();
+                }
             }
         });
         this.connection.addEventListener("error", console.error);
@@ -170,6 +175,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         // 停止時処理...
         this.isShutdown = true;
         this.connection.close();
+        process.exit(0);
     }
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {

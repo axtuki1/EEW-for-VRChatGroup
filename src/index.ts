@@ -18,6 +18,7 @@ const package_json = require('../package.json');
 const isProxy = Boolean(process.env.IS_PROXY) || config.isPorxy || false;
 const express = require('express');
 const app = express();
+let server = null;
 const endpoint = "/eewext";
 const res = require('express/lib/response');
 
@@ -301,13 +302,24 @@ const Main = async () => {
 
     timer.WebAPI(router);
 
+    process.on("SIGINT", function () {
+        process.exit(0);
+    });
+
+    process.on("exit", function() {
+        console.log("Exitting...");
+        if (server != null) server.close(() => {
+            console.log("web server closed.");
+        });
+    })
+
     app.use(express.static('public'));
 
     app.use("/js", express.static('./build/public'));
 
     app.use(router);
 
-    app.listen(TestDataPort, function () {
+    server = app.listen(TestDataPort, function () {
         console.log("試験データ待受ポート: " + TestDataPort);
     });
 
