@@ -49,7 +49,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
 
     private func = {
         551: (inputData) => { // JMAQuake 地震情報
-
+            
         },
         554: (inputData) => { // 緊急地震速報検出
             this.callback(config.EEWDetectData.Title, config.EEWDetectData.Body, config.EEWDetectData.Popup);
@@ -173,7 +173,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     }
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {
-        if (!this.checkPostId(data.id)) return;
+        if (this.checkPostId(data.id)) return;
         this.registPostId(data.id);
         const func = this.func[data.code];
         if (func != null) func(data);
