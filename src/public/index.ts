@@ -14,7 +14,14 @@
             console.log("ok");
         });
     }
+
+    const reconnect = () => {
+        fetch("./api/v1/reconnect").then(r => r.json()).then((json) => {
+            console.log("ok");
+        });
+    }
     
     document.getElementById("updateBtn").addEventListener("click", update);
     document.getElementById("testBtn").addEventListener("click", test);
+    document.getElementById("reconnectBtn").addEventListener("click", reconnect);
 })();
