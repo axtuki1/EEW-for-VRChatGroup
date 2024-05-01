@@ -17,7 +17,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     private lastResponse;
     private connection: WebSocket;
     private logger;
-    private isShutdown;
+    private isReconnect = true;
     public intensityTable = {
         "-1": 1,
         "0": 2,
@@ -49,7 +49,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
 
     private func = {
         551: (inputData) => { // JMAQuake 地震情報
-
+            console.log("test");
         },
         554: (inputData) => { // 緊急地震速報検出
             this.callback(config.EEWDetectData.Title, config.EEWDetectData.Body, config.EEWDetectData.Popup);
@@ -134,6 +134,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     public connect() {
         if (this.connection != null && this.connection.readyState == 1) this.connection.close();
         this.retryCount++;
+        this.isReconnect = true;
         this.lastRequestURL = config.P2P.DataURL;
         this.connection = new WebSocket(config.P2P.DataURL);
         this.connection.addEventListener("open", (e) => {
@@ -148,7 +149,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         });
         this.connection.addEventListener("close", (e) => {
             this.logger.log("Connection closed.");
-            if (!this.isShutdown) {
+            if (this.isReconnect) {
                 if (config.P2P.MaxTryConnectCount >= this.retryCount) {
                     this.logger.log("retry delay... [" + config.P2P.NextReconnectDelay + "s]");
                     setTimeout(() => {
@@ -173,7 +174,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     }
     public Stop() {
         // 停止時処理...
-        this.isShutdown = true;
+        this.isReconnect = false;
         this.connection.close();
         process.exit(0);
     }
