@@ -1,4 +1,5 @@
 import { Ticket } from "./Ticket";
+const WebSocket = require("ws");
 
 export class DMDATA {
 
