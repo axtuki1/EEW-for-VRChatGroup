@@ -33,6 +33,14 @@
             "Popup": true
         }
     },
+    "DMDATA": {
+        // 切断時再度接続するまでの待ち時間
+        "NextReconnectDelay": 2,
+        // 再接続回数の上限
+        "MaxTryConnectCount": 5,
+        // API Key
+        "APIKey": ""
+    },
     // 新強震モニタ設定
     "Kmoni": {
         // 取得しに行く間隔(秒)

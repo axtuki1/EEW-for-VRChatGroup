@@ -5,6 +5,7 @@ import { CheckEarthquake_P2P } from "./CheckEarthquake_P2P";
 import * as OTPAuth from "otpauth";
 import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
+import { CheckEarthquake_DMDATA } from "./CheckEarthquake_DMDATA";
 const { parse } = require("jsonc-parser");
 const config = (() => {
     const json = fs.readFileSync("./config/config.json");
@@ -169,7 +170,7 @@ const PostRemove = async (postId) => {
         }
     }
     logger.log("PostRemoving...");
-    return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts/"+postId, {
+    return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts/" + postId, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
@@ -238,7 +239,7 @@ const UpdatePost = async (title, body, isNotice = false) => {
 }
 
 const Main = async () => {
-    
+
     let logger = new Logger("Main");
 
     if (fs.existsSync("secret/authCookie.txt")) {
@@ -285,11 +286,12 @@ const Main = async () => {
     }
 
     let timer: CheckEarthquake = null;
-    if (config.DataSource == "Kmoni") {
-        timer = new CheckEarthquake_Kmoni(UpdatePost);
-    } else {
+    if (config.DataSource == "P2P") {
         timer = new CheckEarthquake_P2P(UpdatePost);
-        
+    } else if (config.DataSource == "DMDATA") {
+        timer = new CheckEarthquake_DMDATA(UpdatePost);
+    } else {
+        timer = new CheckEarthquake_Kmoni(UpdatePost);
     }
     timer.Start();
 
@@ -302,16 +304,17 @@ const Main = async () => {
 
     timer.WebAPI(router);
 
-    process.on("SIGINT", function () {
+    const exitProcess = async () => {
+        console.log("Exitting...");
+        if (server != null) server.close();
+        if (timer != null) await timer.Stop();
+    }
+
+
+    process.on("SIGINT", async () => {
+        await exitProcess();
         process.exit(0);
     });
-
-    process.on("exit", function() {
-        console.log("Exitting...");
-        if (server != null) server.close(() => {
-            console.log("web server closed.");
-        });
-    })
 
     app.use(express.static('public'));
 
@@ -320,7 +323,7 @@ const Main = async () => {
     app.use(router);
 
     server = app.listen(TestDataPort, function () {
-        console.log("試験データ待受ポート: " + TestDataPort);
+        logger.log('Server is running on port: ' + TestDataPort);
     });
 
 }
