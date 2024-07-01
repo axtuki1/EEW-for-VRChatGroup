@@ -137,8 +137,12 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 DMDATA.Ticket.Classification.Telegram.Earthquake
             ],
             [
-                "VXSE44",
-                "VXSE45"
+                "VXSE44", // 緊急地震速報（予報）
+                "VXSE45", // 緊急地震速報（地震動予報）
+                "VXSE51", // 震度速報
+                "VTSE41", // 津波警報・注意報・予報
+                "VXSE52", // 震源に関する情報
+                "VXSE53"  // 震源・震度に関する情報
             ],
             "json",
             true
