@@ -12,9 +12,8 @@
         <h1>EEW for VRChatGroup</h1>
         <button class="btn inline" id="updateBtn">更新</button>
         <button class="btn inline" id="testBtn">テスト配信</button>
-        <button class="btn inline" id="reconnectBtn">WS: 再接続</button>
     </header>
-    <section class="panel">
+    <section class="panel kyoshin-monitor hidden">
         <div>
             <span>RequestURL</span>
             <pre class="code" id="request">request</pre>
@@ -24,7 +23,16 @@
             <pre class="code" id="response">response</pre>
         </div>
     </section>
-    
+    <section class="panel dmdata hidden">
+        <div>
+            <span>RequestURL</span>
+            <pre class="code" id="request">request</pre>
+        </div>
+        <div>
+            <span>Response</span>
+            <pre class="code" id="response">response</pre>
+        </div>
+    </section>
     <script src="./js/index.js"></script>
 </body>
 
