@@ -80,10 +80,11 @@ export class DMDATA {
      * @param appName アプリケーション名
      * @param classifications 配信区分 DMDATA.Ticket.Classificationに定義されているものを指定
      * @param types データ種類コード 例: VXSE43 {@link https://dmdata.jp/docs/telegrams/#%E9%85%8D%E4%BF%A1%E3%83%87%E3%83%BC%E3%82%BF%E3%81%AE%E3%83%AA%E3%82%B9%E3%83%88|Docs: 一覧}
+     * @param formatMode フォーマットモード (デフォルト: json)
      * @param test テスト電文を受け取るか (デフォルト: false)
      * @returns 作成したチケット | エラー情報
      */
-    public async createTicket(appName: string, classifications: string[], types: string[], formatMode: "raw" | "json",test: boolean = false): Promise<Ticket> {
+    public async createTicket(appName: string, classifications: string[], types: string[], formatMode: "raw" | "json" = "json", test: boolean = false): Promise<Ticket> {
         return await fetch("https://api.dmdata.jp/v2/socket", {
             method: "POST",
             headers: {
@@ -96,6 +97,7 @@ export class DMDATA {
                 "classifications": classifications,
                 "types": types,
                 "test": test ? "including" : "no",
+                "formatMode": formatMode,
                 "appName": appName
             })
         }).then(async (res) => {
