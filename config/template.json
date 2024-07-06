@@ -39,7 +39,11 @@
         // 再接続回数の上限
         "MaxTryConnectCount": 5,
         // API Key
-        "APIKey": ""
+        "APIKey": "",
+        // 送信内容
+        "sendMsg": "${isTraining}${alertFlg}[第${report_num}報]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生",
+        // 
+        "cancelMsg": "[キャンセル] ${isTraining}${alertFlg}[第${report_num}報]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生"
     },
     // 新強震モニタ設定
     "Kmoni": {
