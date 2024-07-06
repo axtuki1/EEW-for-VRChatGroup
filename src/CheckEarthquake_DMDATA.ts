@@ -162,9 +162,10 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     }
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {
-
-        const func = this.func[data.head.type];
-        if (func != null) func(data, data.body);
+        if (data.type == "data") {
+            const func = this.func[data.head.type];
+            if (func != null) func(data, data.body);
+        }
         if (config.gatherData) {
             let nowTime = new Date().toLocaleDateString("ja-JP", {
                 year: "numeric", month: "2-digit",
@@ -203,7 +204,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         } else {
             this.lastData = data;
         }
-        
+
         sendMsg = sendMsg.replaceAll("${isTraining}", data.is_training ? "--訓練-- " : "");
         sendMsg = sendMsg.replaceAll("${alertFlg}", data.alertflg == "警報" ? "!警報! " : "");
         sendMsg = sendMsg.replaceAll(
