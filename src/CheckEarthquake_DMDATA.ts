@@ -55,27 +55,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
     private func = {
         "VXSE45": (data, xmlData) => {
-            if (xmlData.body.earthquake.condition == "仮定震源要素時") {
-                // 仮定震源要素時は無視
-                return;
-            }
-            // 通知対象の震度か確認
-            if (this.intensityTable[xmlData.intensity.forecastMaxInt.to] < this.noticeIntensity) {
-                return;
-            }
-            const outputData = {
-                is_training: xmlData.body.earthquake,
-                is_final: xmlData.body.earthquake.isLastInfo,
-                is_cancel: xmlData.body.earthquake.isCanceled,
-                alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"
-                report_num: xmlData.serialNo,
-                region_name: xmlData.body.earthquake.hypocenter.name,
-                calcintensity: this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to],
-                magunitude: xmlData.body.earthquake.magunitude.value ? xmlData.body.earthquake.magunitude.value : "不明",
-                depth: xmlData.earthquake.hypocenter.depth,
-                origin_time: xmlData.body.earthquake.originTime
-            };
-            this.SendData(outputData);
+            this.SendData(xmlData);
         }
     }
 
@@ -195,7 +175,46 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     }
     */
     private lastData = {};
-    public SendData(data) {
+    private knownData = {};
+    public SendData(xmlData) {
+        if (
+            xmlData.body.earthquake.condition == "仮定震源要素時" ||
+            xmlData.body.intensity == null
+        ) {
+            // 仮定震源要素時は無視
+            // 震度情報がない場合も無視
+            return;
+        }
+        // 通知対象の震度か確認
+        if (this.intensityTable[xmlData.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+            return;
+        }
+
+        // 配信済みのデータで、以下の条件に当てはまらない場合は無視
+        // 最終報である
+        // キャンセル情報である
+        if (
+            xmlData.eventId in this.knownData && !(
+                xmlData.body.isLastInfo ||
+                xmlData.body.isCanceled
+            )
+        ) {
+            return;
+        }
+
+        let data: any = {
+            is_training: xmlData.body.isTraining,
+            is_final: xmlData.body.isLastInfo,
+            is_cancel: xmlData.body.isCanceled,
+            alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"
+            report_num: xmlData.serialNo,
+            region_name: xmlData.body.earthquake.hypocenter.name,
+            calcintensity: this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to],
+            magunitude: xmlData.body.earthquake.magunitude.value ? xmlData.body.earthquake.magunitude.value : "不明",
+            depth: xmlData.earthquake.hypocenter.depth,
+            origin_time: xmlData.body.earthquake.originTime
+        };
+
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         let sendMsg = config.settings.DMDATA.sendMsg;
         if (data.is_cancel) {
