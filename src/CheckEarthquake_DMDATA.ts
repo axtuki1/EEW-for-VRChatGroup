@@ -186,7 +186,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
         // 通知対象の震度か確認
-        if (this.intensityTable[xmlData.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+        if (this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
             return;
         }
 
