@@ -176,7 +176,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     */
     private lastData = {};
     private knownData = {};
-    public SendData(xmlData) {
+    public SendData(xmlData, notice:boolean = true) {
         if (
             xmlData.body.earthquake.condition == "仮定震源要素時" ||
             xmlData.body.intensity == null
@@ -210,15 +210,15 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             report_num: xmlData.serialNo,
             region_name: xmlData.body.earthquake.hypocenter.name,
             calcintensity: this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to],
-            magunitude: xmlData.body.earthquake.magunitude.value ? xmlData.body.earthquake.magunitude.value : "不明",
-            depth: xmlData.earthquake.hypocenter.depth,
+            magunitude: xmlData.body.earthquake.magnitude.value ? xmlData.body.earthquake.magnitude.value : "不明",
+            depth: xmlData.body.earthquake.hypocenter.depth.value + xmlData.body.earthquake.hypocenter.depth.unit,
             origin_time: xmlData.body.earthquake.originTime
         };
-
-        const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
-        let sendMsg = config.settings.DMDATA.sendMsg;
+        const origin_time_obj = new Date(xmlData.body.earthquake.originTime);
+        const origin_time = `${origin_time_obj.getFullYear()}年${origin_time_obj.getMonth() + 1}月${origin_time_obj.getDate()}日 ${origin_time_obj.getHours()}:${origin_time_obj.getMinutes()}:${origin_time_obj.getSeconds()}`;
+        let sendMsg = config.DMDATA.sendMsg;
         if (data.is_cancel) {
-            sendMsg = config.settings.DMDATA.cancelMsg;
+            sendMsg = config.DMDATA.cancelMsg;
             data = this.lastData;
         } else {
             this.lastData = data;
@@ -237,7 +237,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback(config.settings.sendTitle, sendMsg, true);
+        this.callback(config.settings.sendTitle, sendMsg, notice);
     }
     public WebAPI(router) {
         expressWs(router);
@@ -254,9 +254,9 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         });
         router.post("/api/v1/testDataInput", (req, res) => {
             const data = req.body;
-            data.test = true;
-            data.region_name = "[試験データ]" + data.earthquake.name;
-            this.DataProcess(data);
+            data.body.body.isTraining = true;
+            data.body.body.earthquake.hypocenter.name = "[試験データ]" + data.body.body.earthquake.hypocenter.name;
+            this.SendData(data.body, false);
             res.json({
                 status: "ok"
             });
