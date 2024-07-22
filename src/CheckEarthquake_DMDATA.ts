@@ -190,17 +190,22 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
 
-        // 配信済みのデータで、以下の条件に当てはまらない場合は無視
+        // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
         // 最終報である
         // キャンセル情報である
+        // 既存のデータよりも強い震度情報である
         if (
             xmlData.eventId in this.knownData && !(
                 xmlData.body.isLastInfo ||
-                xmlData.body.isCanceled
+                xmlData.body.isCanceled ||
+                this.intensityTable[this.knownData[xmlData.eventId].body.intensity.forecastMaxInt.to] < this.intensityTable[xmlData.body.intensity.forecastMaxInt.to]
             )
         ) {
             return;
         }
+
+        this.knownData[xmlData.eventId] = xmlData;
+        this.scheduleRemoveOldKnownData(xmlData.eventId);
 
         let data: any = {
             is_training: xmlData.body.isTraining,
@@ -239,6 +244,19 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
         this.callback(config.settings.sendTitle, sendMsg, notice);
     }
+
+    // 旧データの削除処理
+    private scheduleTimeouts = {};
+    public scheduleRemoveOldKnownData(eventId) {
+        if (eventId in this.scheduleTimeouts) {
+            clearTimeout(this.scheduleTimeouts[eventId]);
+        }
+        this.scheduleTimeouts[eventId] = setTimeout(() => {
+            delete this.knownData[eventId];
+            delete this.scheduleTimeouts[eventId];
+        }, 1000 * 60 * 60); // 1時間後に削除
+    }
+
     public WebAPI(router) {
         expressWs(router);
         router.get("/api/v1/reconnect", (req, res) => {
