@@ -66,7 +66,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
     public async connect() {
 
-        this.logger.log("Creating ticket...");
+        this.logger.info("Creating ticket...");
         const ticket = await this.dmdata.createTicket(
             "EEWForVRChatGroup",
             [
@@ -86,13 +86,13 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         );
 
         if (ticket.error) {
-            this.logger.log("Failed to create ticket:");
-            this.logger.log(ticket.error);
+            this.logger.info("Failed to create ticket:");
+            this.logger.info(ticket.error);
             this.Stop();
             return;
         }
-        this.logger.log("Ticket created: " + ticket.responseId);
-        this.logger.log("Connecting to websocket server...");
+        this.logger.info("Ticket created: " + ticket.responseId);
+        this.logger.info("Connecting to websocket server...");
         this.dmdata.startConnect(ticket);
     }
     public Start() {
@@ -103,23 +103,23 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         this.dmdata = new DMDATA(config.DMDATA.APIKey);
         this.dmdata.addEventListener("open", () => {
-            this.logger.log("Connected to DMDATA!");
+            this.logger.info("Connected to DMDATA!");
         });
         this.dmdata.addEventListener("ping", (error) => {
             this.lastPing = new Date();
         });
         this.dmdata.addEventListener("error", (error) => {
-            this.logger.log(error);
+            this.logger.info(error);
             if (this.isReconnect) {
-                this.logger.log("Reconnecting...");
+                this.logger.info("Reconnecting...");
                 this.connect();
             }
 
         });
         this.dmdata.addEventListener("close", () => {
-            this.logger.log("Disconnected from DMDATA!");
+            this.logger.info("Disconnected from DMDATA!");
             if (this.isReconnect) {
-                this.logger.log("Reconnecting...");
+                this.logger.info("Reconnecting...");
                 this.connect();
             }
         });
@@ -297,7 +297,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             });
         });
         router.ws("/api/v1/ws", (ws, req) => {
-            this.logger.log("Local websocket server connected!");
+            this.logger.info("Local websocket server connected!");
 
             ws.on("message", (message) => {
                 const data = JSON.parse(message);

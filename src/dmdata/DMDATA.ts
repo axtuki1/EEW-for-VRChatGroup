@@ -1,5 +1,6 @@
 import { Ticket } from "./Ticket";
 const WebSocket = require("ws");
+import { Logger } from "../util/logger";
 
 export class DMDATA {
 
@@ -17,6 +18,7 @@ export class DMDATA {
     private onPing: Array<(data: any) => void> = [];
 
     private ws: WebSocket;
+    private logger: Logger;
 
     /**
      * DMDATA APIを利用するためのクラス
@@ -24,6 +26,7 @@ export class DMDATA {
      */
     constructor(apiKey: string) {
         this.apiKey = apiKey;
+        this.logger = new Logger("DMDATA_API");
     }
 
     public dumpTickets() {

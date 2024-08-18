@@ -66,5 +66,6 @@
     },
     "OTPValue": "", // 削除予定。メール認証もしくはアカウント情報内のOTP項目が空の場合に使用する。
     // 連絡先
-    "contact": ""
+    "contact": "",
+    "logLevel": "info"
 }
