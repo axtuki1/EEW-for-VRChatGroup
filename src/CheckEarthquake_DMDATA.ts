@@ -52,6 +52,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         "over": "7",
     }
     private retryCount = 0;
+    private currentTicket;
 
     private func = {
         "VXSE45": (data, xmlData) => {
@@ -94,6 +95,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         this.logger.info("Ticket created: " + ticket.responseId);
         this.logger.info("Connecting to websocket server...");
         this.dmdata.startConnect(ticket);
+        this.currentTicket = ticket;
     }
     public Start() {
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
@@ -138,7 +140,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     public Stop() {
         // 停止時処理...
         this.isReconnect = false;
-        this.dmdata.closeConnect();
+        this.dmdata.closeConnect(this.currentTicket);
+        this.currentTicket = null;
     }
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {

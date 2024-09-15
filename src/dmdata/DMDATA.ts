@@ -9,6 +9,8 @@ export class DMDATA {
 
     private apiKey: string;
     private tickets: Ticket[] = [];
+    private activeConnection: { [key: string]: WebSocket } = {};
+    private lastPing: { [key: string]: Date } = {};
 
     // callback
     private onOpen: Array<(data: any) => void> = [];
@@ -17,8 +19,8 @@ export class DMDATA {
     private onClose: Array<(data: any) => void> = [];
     private onPing: Array<(data: any) => void> = [];
 
-    private ws: WebSocket;
     private logger: Logger;
+    private checkPickInterval: NodeJS.Timeout;
 
     /**
      * DMDATA APIを利用するためのクラス
@@ -27,6 +29,26 @@ export class DMDATA {
     constructor(apiKey: string) {
         this.apiKey = apiKey;
         this.logger = new Logger("DMDATA_API");
+        this.checkPickInterval = setInterval(this.checkPing, 1000 * 1);
+    }
+
+    private checkPing() {
+        for(const key in this.activeConnection) {
+            const ws = this.activeConnection[key];
+            if(ws.readyState === ws.OPEN) {
+                ws.send(JSON.stringify({
+                    type: "ping",
+                    pingId: key
+                }));
+            }
+        }
+        // 10秒以上応答がない場合は切断
+        for (const key in this.lastPing) {
+            const lastPing = this.lastPing[key];
+            if (new Date().getTime() - lastPing.getTime() > 1000 * 20) {
+                this.closeConnect(this.tickets.find(ticket => ticket.responseId === key));
+            }
+        }
     }
 
     public dumpTickets() {
@@ -176,42 +198,47 @@ export class DMDATA {
         if (this.tickets.indexOf(ticket) === -1){
             return;
         }
-        this.ws = new WebSocket(ticket.websocket.url);
-        this.ws.onopen = (event) => {
+        const ws = new WebSocket(ticket.websocket.url);
+        ws.onopen = (event) => {
             this.onOpen.forEach(callback => {
                 callback(event);
             });
         }
-        this.ws.onmessage = (event) => {
+        ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === "error") {
                 this.onError.forEach(callback => {
                     callback(data);
                 });
             } else if (data.type === "ping") {
-                this.ws.send(JSON.stringify({
+                ws.send(JSON.stringify({
                     type: "pong",
                     pingId: data.pingId
                 }));
                 this.onPing.forEach(callback => {
                     callback(data);
                 });
+                
+            } else if (data.type === "pong") {
+                this.lastPing[ticket.responseId] = new Date();
             } else {
                 this.onReceive.forEach(callback => {
                     callback(data);
                 });
             }
         }
-        this.ws.onclose = (event) => {
+        ws.onclose = (event) => {
             this.onClose.forEach(callback => {
                 callback(event);
             });
         }
+        this.activeConnection[ticket.responseId] = ws;
     }
 
-    public closeConnect() {
-        if(this.ws != null) {
-            this.ws.close();
+    public closeConnect(ticket: Ticket) {
+        const ws = this.activeConnection[ticket.responseId];
+        if(ws != null) {
+            ws.close();
         }
     }
 
