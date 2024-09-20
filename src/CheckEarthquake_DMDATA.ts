@@ -67,6 +67,11 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
     public async connect() {
 
+        if (this.currentTicket != null) {
+            this.dmdata.closeConnect(this.currentTicket);
+            this.dmdata.closeTicket(this.currentTicket);
+        }
+
         this.logger.info("Creating ticket...");
         const ticket = await this.dmdata.createTicket(
             "EEWForVRChatGroup",
@@ -263,6 +268,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     public WebAPI(router) {
         expressWs(router);
         router.get("/api/v1/reconnect", (req, res) => {
+            this.connect();
             res.json({
                 status: "ok"
             });
@@ -271,6 +277,13 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             res.json({
                 requestURL: this.lastRequestURL,
                 response: this.lastResponse
+            });
+        });
+        router.get("/api/v1/debug", (req, res) => {
+            res.json({
+                allTickets: this.dmdata.getTickets(),
+                lastPing: this.dmdata.getLastPing(this.currentTicket),
+                
             });
         });
         router.post("/api/v1/testDataInput", (req, res) => {

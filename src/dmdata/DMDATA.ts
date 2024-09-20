@@ -55,6 +55,10 @@ export class DMDATA {
         console.log(this.tickets);
     }
 
+    public getLastPing(ticket: Ticket) {
+        return this.lastPing[ticket.responseId];
+    }
+
     /**
      * 作成したすべてのチケットを取得する
      * @returns チケット一覧
