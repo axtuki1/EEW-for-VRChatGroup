@@ -46,7 +46,9 @@ export class DMDATA {
         for (const key in this.lastPing) {
             const lastPing = this.lastPing[key];
             if (new Date().getTime() - lastPing.getTime() > 1000 * 20) {
-                this.closeConnect(this.tickets.find(ticket => ticket.responseId === key));
+                const ticket = this.tickets.find(ticket => ticket.responseId === key);
+                this.logger.warn("Connection timeout: " + ticket.responseId);
+                this.closeConnect(ticket);
             }
         }
     }
@@ -241,7 +243,7 @@ export class DMDATA {
 
     public closeConnect(ticket: Ticket) {
         const ws = this.activeConnection[ticket.responseId];
-        if(ws != null) {
+        if(ws != null && ws.readyState === ws.OPEN) {
             ws.close();
         }
     }

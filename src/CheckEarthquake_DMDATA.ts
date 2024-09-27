@@ -117,11 +117,6 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         });
         this.dmdata.addEventListener("error", (error) => {
             this.logger.info(error);
-            if (this.isReconnect) {
-                this.logger.info("Reconnecting...");
-                this.connect();
-            }
-
         });
         this.dmdata.addEventListener("close", () => {
             this.logger.info("Disconnected from DMDATA!");
