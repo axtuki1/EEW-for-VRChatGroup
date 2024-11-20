@@ -55,6 +55,7 @@ if (config.authentication.OTP != null && config.authentication.OTP.URI != null) 
     totpObj = OTPAuth.URI.parse(config.authentication.OTP.URI);
 }
 
+const userAgent = package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact;
 
 const Login = async () => {
     let logger = new Logger("API:Login");
@@ -62,6 +63,7 @@ const Login = async () => {
     await fetch("https://api.vrchat.cloud/api/1/auth/user", {
         headers: {
             "Content-Type": "application/json",
+            "User-Agent": userAgent,
             "Cookie": "apiKey=" + config.apiKey,
             credentials: "same-origin",
             Authorization: 'Basic ' + Buffer.from(encodeURIComponent(config.authentication.email) + ":" + encodeURIComponent(config.authentication.password)).toString("base64")
@@ -98,6 +100,7 @@ const Login = async () => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    "User-Agent": userAgent,
                     "Cookie": "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
                 },
                 body: JSON.stringify({
@@ -144,7 +147,7 @@ const GetPostList = async () => {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
-            "User-Agent": package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact,
+            "User-Agent": userAgent,
             Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
         },
         body: null
@@ -174,7 +177,7 @@ const PostRemove = async (postId) => {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
-            "User-Agent": package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact,
+            "User-Agent": userAgent,
             Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
         },
         body: null
@@ -206,7 +209,7 @@ const Notice = async (title, body, isNotice = false) => {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "User-Agent": package_json.name + "/v" + package_json.version + " " + package_json.github + " " + config.contact,
+            "User-Agent": userAgent,
             Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
         },
         body: JSON.stringify({
