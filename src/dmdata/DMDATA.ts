@@ -2,6 +2,7 @@ import { Ticket } from "./Ticket";
 const WebSocket = require("ws");
 import { Logger } from "../util/logger";
 
+
 export class DMDATA {
 
     // WebSocket通信を行うためのチケットクラス
@@ -9,8 +10,8 @@ export class DMDATA {
 
     private apiKey: string;
     private tickets: Ticket[] = [];
-    private activeConnection: { [key: string]: WebSocket } = {};
-    private lastPing: { [key: string]: Date } = {};
+    private activeConnection: Record<string, WebSocket> = {};
+    private lastPing: Record<string, Date> = {};
 
     // callback
     private onOpen: Array<(data: any) => void> = [];
@@ -29,11 +30,13 @@ export class DMDATA {
     constructor(apiKey: string) {
         this.apiKey = apiKey;
         this.logger = new Logger("DMDATA_API");
-        this.checkPickInterval = setInterval(this.checkPing, 1000 * 1);
+        // どはまりぽいんと: bind(this)を忘れるとthisがundefinedになる
+        // アロー関数にしてもいい感あるけど参照しているって事がわかりにくいので....
+        this.checkPickInterval = setInterval(this.checkPing.bind(this), 1000 * 1);
     }
 
     private checkPing() {
-        for(const key in this.activeConnection) {
+        for (const key in this.activeConnection) {
             const ws = this.activeConnection[key];
             if(ws.readyState === ws.OPEN) {
                 ws.send(JSON.stringify({
@@ -54,7 +57,13 @@ export class DMDATA {
     }
 
     public dumpTickets() {
+        console.log("dumpTickets-------------------");
         console.log(this.tickets);
+    }
+
+    public dumpLastPing() {
+        console.log("dumpLastPing-------------------");
+        console.log(this.lastPing);
     }
 
     public getLastPing(ticket: Ticket) {

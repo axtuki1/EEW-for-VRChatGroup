@@ -275,10 +275,11 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             });
         });
         router.get("/api/v1/debug", (req, res) => {
+            this.dmdata.dumpLastPing();
+            this.dmdata.dumpTickets();
             res.json({
                 allTickets: this.dmdata.getTickets(),
                 lastPing: this.dmdata.getLastPing(this.currentTicket),
-                
             });
         });
         router.post("/api/v1/testDataInput", (req, res) => {
