@@ -52,18 +52,9 @@ export class DMDATA {
                 const ticket = this.tickets.find(ticket => ticket.responseId === key);
                 this.logger.warn("Connection timeout: " + ticket.responseId);
                 this.closeConnect(ticket);
+                delete this.lastPing[key];
             }
         }
-    }
-
-    public dumpTickets() {
-        console.log("dumpTickets-------------------");
-        console.log(this.tickets);
-    }
-
-    public dumpLastPing() {
-        console.log("dumpLastPing-------------------");
-        console.log(this.lastPing);
     }
 
     public getLastPing(ticket: Ticket) {
@@ -174,8 +165,8 @@ export class DMDATA {
      * @param id WebSocketID (チケット内の websocket.id を入力)
      * @returns 
      */
-    public async closeTicket(id) {
-        return await fetch("https://api.dmdata.jp/v2/socket/" + id, {
+    public async closeTicket(ticket: Ticket) {
+        return await fetch("https://api.dmdata.jp/v2/socket/" + ticket.websocket.id, {
             method: "DELETE",
             headers: {
                 "Content-Type": "application/json",
@@ -184,23 +175,23 @@ export class DMDATA {
                 ).toString('base64')
             }
         }).then(async res => res.json()).then(async res => {
-            if (res != null && res.status === "error") {
+            if (res != null && res.status != null && res.status === "error") {
                 this.onError.forEach(callback => {
                     callback({
                         type: "closeTicket",
+                        url: "https://api.dmdata.jp/v2/socket/" + ticket.websocket.id,
                         data: res
                     });
                 });
-                return null;
             }
         }).catch(async error => {
             this.onError.forEach(callback => {
                 callback({
                     type: "closeTicket",
+                    url: "https://api.dmdata.jp/v2/socket/" + ticket.websocket.id,
                     data: error
                 });
             });
-            return null;
         });
     }
 
@@ -215,6 +206,7 @@ export class DMDATA {
         }
         const ws = new WebSocket(ticket.websocket.url);
         ws.onopen = (event) => {
+            ticket.isUsed = true;
             this.onOpen.forEach(callback => {
                 callback(event);
             });

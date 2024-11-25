@@ -65,43 +65,6 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         this.logger = new Logger("DMDATA");
     }
 
-    public async connect() {
-
-        if (this.currentTicket != null) {
-            this.dmdata.closeConnect(this.currentTicket);
-            this.dmdata.closeTicket(this.currentTicket);
-        }
-
-        this.logger.info("Creating ticket...");
-        const ticket = await this.dmdata.createTicket(
-            "EEWForVRChatGroup",
-            [
-                DMDATA.Ticket.Classification.EEW.Forecast,
-                DMDATA.Ticket.Classification.Telegram.Earthquake
-            ],
-            [
-                "VXSE44", // 緊急地震速報（予報）
-                "VXSE45", // 緊急地震速報（地震動予報）
-                // "VXSE51", // 震度速報
-                // "VTSE41", // 津波警報・注意報・予報
-                // "VXSE52", // 震源に関する情報
-                // "VXSE53"  // 震源・震度に関する情報
-            ],
-            "json",
-            true
-        );
-
-        if (ticket.error) {
-            this.logger.info("Failed to create ticket:");
-            this.logger.info(ticket.error);
-            this.Stop();
-            return;
-        }
-        this.logger.info("Ticket created: " + ticket.responseId);
-        this.logger.info("Connecting to websocket server...");
-        this.dmdata.startConnect(ticket);
-        this.currentTicket = ticket;
-    }
     public Start() {
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
@@ -110,15 +73,16 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         this.dmdata = new DMDATA(config.DMDATA.APIKey);
         this.dmdata.addEventListener("open", () => {
-            this.logger.info("Connected to DMDATA!");
+            this.logger.info("Connected to DMDATA!: " + this.currentTicket.websocket.id);
         });
         this.dmdata.addEventListener("ping", (error) => {
             this.lastPing = new Date();
         });
         this.dmdata.addEventListener("error", (error) => {
-            this.logger.info(error);
+            this.logger.error(error);
         });
         this.dmdata.addEventListener("close", () => {
+            this.currentTicket = null;
             this.logger.info("Disconnected from DMDATA!");
             if (this.isReconnect) {
                 this.logger.info("Reconnecting...");
@@ -143,6 +107,44 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         this.dmdata.closeConnect(this.currentTicket);
         this.currentTicket = null;
     }
+
+    public async connect() {
+
+        if (this.currentTicket != null) {
+            this.dmdata.closeConnect(this.currentTicket);
+        }
+
+        this.logger.info("Creating ticket...");
+        const ticket = await this.dmdata.createTicket(
+            "EEWForVRChatGroup",
+            [
+                DMDATA.Ticket.Classification.EEW.Forecast,
+                DMDATA.Ticket.Classification.Telegram.Earthquake
+            ],
+            [
+                "VXSE44", // 緊急地震速報（予報）
+                "VXSE45", // 緊急地震速報（地震動予報）
+                // "VXSE51", // 震度速報
+                // "VTSE41", // 津波警報・注意報・予報
+                // "VXSE52", // 震源に関する情報
+                // "VXSE53"  // 震源・震度に関する情報
+            ],
+            "json",
+            true
+        );
+
+        if (ticket.error) {
+            this.logger.error("Failed to create ticket:");
+            this.logger.error(ticket.error);
+            this.Stop();
+            return;
+        }
+        this.logger.info("Ticket created: " + ticket.responseId);
+        this.logger.info("Connecting to websocket server...");
+        this.dmdata.startConnect(ticket);
+        this.currentTicket = ticket;
+    }
+
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {
         if (data.type == "data") {
@@ -272,14 +274,6 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             res.json({
                 requestURL: this.lastRequestURL,
                 response: this.lastResponse
-            });
-        });
-        router.get("/api/v1/debug", (req, res) => {
-            this.dmdata.dumpLastPing();
-            this.dmdata.dumpTickets();
-            res.json({
-                allTickets: this.dmdata.getTickets(),
-                lastPing: this.dmdata.getLastPing(this.currentTicket),
             });
         });
         router.post("/api/v1/testDataInput", (req, res) => {

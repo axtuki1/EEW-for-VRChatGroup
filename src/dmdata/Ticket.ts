@@ -45,4 +45,5 @@ export class Ticket {
     public formats: string[];
     public appName: string;
     public error: any;
+    public isUsed: boolean = false;
 }
