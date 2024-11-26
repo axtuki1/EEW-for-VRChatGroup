@@ -181,17 +181,15 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     */
     private lastData = {};
     private knownData = {};
-    public SendData(xmlData, notice:boolean = true) {
+    public SendData(xmlData, notice: boolean = true) {
         if (
-            xmlData.body.earthquake.condition == "仮定震源要素時" ||
-            xmlData.body.intensity == null
+            xmlData.body.earthquake?.condition == "仮定震源要素時"
         ) {
             // 仮定震源要素時は無視
-            // 震度情報がない場合も無視
             return;
         }
-        // 通知対象の震度か確認
-        if (this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+        // キャンセル報でない場合、通知対象の震度か確認
+        if (!xmlData.body.isCanceled && this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
             return;
         }
 
@@ -209,7 +207,14 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
 
-        this.knownData[xmlData.eventId] = xmlData;
+        // キャンセル報の場合、既存のデータを取得してキャンセル情報を付与
+        if (xmlData.body.isCanceled) {
+            xmlData = this.knownData[xmlData.eventId];
+            xmlData.body.isCanceled = true;
+        } else {
+            // 通知対象の震度である場合、新しいデータを保存
+            this.knownData[xmlData.eventId] = xmlData;
+        }
         this.scheduleRemoveOldKnownData(xmlData.eventId);
 
         let data: any = {
