@@ -189,7 +189,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
         // キャンセル報でない場合、通知対象の震度か確認
-        if (!xmlData.body.isCanceled && this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+        if (!xmlData.body.isCanceled &&
+            xmlData.body.intensity != null && this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
             return;
         }
 
