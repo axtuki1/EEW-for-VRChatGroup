@@ -182,31 +182,37 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     private lastData = {};
     private knownData = {};
     public SendData(xmlData, notice: boolean = true) {
+
+        // === 配信条件の判定 ===
+
         if (
             xmlData.body.earthquake?.condition == "仮定震源要素時"
         ) {
-            // 仮定震源要素時は無視
-            return;
-        }
-        // キャンセル報でない場合、通知対象の震度か確認
-        if (!xmlData.body.isCanceled &&
-            xmlData.body.intensity != null && this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+            // 仮定震源要素時は無条件で無視
             return;
         }
 
-        // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
-        // 最終報である
-        // キャンセル情報である
-        // 既存のデータよりも強い震度情報である
-        if (
-            xmlData.eventId in this.knownData && !(
+        if (xmlData.eventId in this.knownData) {
+            // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
+            // 最終報である
+            // キャンセル情報である
+            // 既存のデータよりも強い震度情報である
+            if(!(
                 xmlData.body.isLastInfo ||
                 xmlData.body.isCanceled ||
                 this.intensityTable[this.knownData[xmlData.eventId].body.intensity.forecastMaxInt.to] < this.intensityTable[xmlData.body.intensity.forecastMaxInt.to]
-            )
-        ) {
-            return;
+            )) {
+                return;
+            }
+        } else {
+            // 未配信データの場合
+            if (!xmlData.body.isCanceled &&
+                xmlData.body.intensity != null && this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+                return;
+            }
         }
+        
+        // === 配信済みリストに登録 ===
 
         // キャンセル報の場合、既存のデータを取得してキャンセル情報を付与
         if (xmlData.body.isCanceled) {
@@ -217,6 +223,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             this.knownData[xmlData.eventId] = xmlData;
         }
         this.scheduleRemoveOldKnownData(xmlData.eventId);
+
+        // === 配信データ作成 ===
 
         let data: any = {
             is_training: xmlData.body.isTraining,
