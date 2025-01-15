@@ -56,7 +56,12 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
     private func = {
         "VXSE45": (data, xmlData) => {
-            this.SendData(xmlData);
+            try {
+                this.SendData(xmlData);
+            } catch (e) {
+                this.logger.error("受信時処理でエラーが発生しました:");
+                console.log(e);
+            }
         }
     }
 
@@ -207,7 +212,10 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         } else {
             // 未配信データの場合
             if (!xmlData.body.isCanceled &&
-                xmlData.body.intensity != null && this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity) {
+                (
+                    xmlData.body.intensity == null ||
+                    this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity
+                )) {
                 return;
             }
         }
