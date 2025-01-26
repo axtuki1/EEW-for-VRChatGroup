@@ -34,7 +34,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         "6-": 9,
         "6+": 10,
         "7": 11,
-        "over": 12,
+        // "over": 12, // overはfromの値を見るので...
     };
     public noticeIntensity = 6;
     public intensityNameMaster = {
@@ -49,7 +49,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         "6-": "6弱",
         "6+": "6強",
         "7": "7",
-        "over": "7",
+        // "over": "7", // overはfromの値を見るので...
     }
     private retryCount = 0;
     private currentTicket;
@@ -234,6 +234,14 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         // === 配信データ作成 ===
 
+        // 震度情報
+        let calcintensity = this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to];
+
+        if (calcintensity == "over") {
+            // 震度が"over"の場合、fromの値を見る
+            calcintensity = this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.from] + "以上";
+        }
+
         let data: any = {
             is_training: xmlData.body.isTraining,
             is_final: xmlData.body.isLastInfo,
@@ -241,7 +249,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"
             report_num: xmlData.serialNo,
             region_name: xmlData.body.earthquake.hypocenter.name,
-            calcintensity: this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to],
+            calcintensity: calcintensity,
             magunitude: xmlData.body.earthquake.magnitude.value ? xmlData.body.earthquake.magnitude.value : "不明",
             depth: xmlData.body.earthquake.hypocenter.depth.value + xmlData.body.earthquake.hypocenter.depth.unit,
             origin_time: xmlData.body.earthquake.originTime
