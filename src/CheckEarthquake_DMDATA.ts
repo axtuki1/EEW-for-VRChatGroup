@@ -49,7 +49,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         "6-": "6弱",
         "6+": "6強",
         "7": "7",
-        // "over": "7", // overはfromの値を見るので...
+        "over": "over", // overはfromの値を見るので...
     }
     private retryCount = 0;
     private currentTicket;
