@@ -255,7 +255,13 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             origin_time: xmlData.body.earthquake.originTime
         };
         const origin_time_obj = new Date(xmlData.body.earthquake.originTime);
-        const origin_time = `${origin_time_obj.getFullYear()}年${origin_time_obj.getMonth() + 1}月${origin_time_obj.getDate()}日 ${origin_time_obj.getHours()}:${origin_time_obj.getMinutes()}:${origin_time_obj.getSeconds()}`;
+        const origin_time_year = origin_time_obj.getFullYear();
+        const origin_time_month = (origin_time_obj.getMonth() + 1).toString().padStart(2, "0");
+        const origin_time_day = origin_time_obj.getDate().toString().padStart(2, "0");
+        const origin_time_hour = origin_time_obj.getHours().toString().padStart(2, "0");
+        const origin_time_min = origin_time_obj.getMinutes().toString().padStart(2, "0");
+        const origin_time_sec = origin_time_obj.getSeconds().toString().padStart(2, "0");
+        const origin_time = `${origin_time_year}年${origin_time_month}月${origin_time_day}日 ${origin_time_hour}:${origin_time_min}:${origin_time_sec}`;
         let sendMsg = config.DMDATA.sendMsg;
         if (data.is_cancel) {
             sendMsg = config.DMDATA.cancelMsg;
