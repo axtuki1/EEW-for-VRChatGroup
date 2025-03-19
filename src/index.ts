@@ -234,10 +234,16 @@ const Notice = async (title, body, isNotice = false) => {
 const UpdatePost = async (title, body, isNotice = false) => {
     const alllist = GetPostList();
     const list = await alllist;
-    if (config.debug) console.log(list);
-    list["posts"].filter((post) => post.title == title).forEach(async post => {
-        await PostRemove(post.id);
-    });
+    try {
+        if (config.debug) console.log(list);
+        if (list != null) list["posts"].filter((post) => post.title == title).forEach(async post => {
+            await PostRemove(post.id);
+        });
+    } catch (e) {
+        console.log(e);
+        console.log("GetPostList: ");
+        console.log(list);
+    }
     Notice(title, body, isNotice);
 }
 
