@@ -142,7 +142,7 @@ const GetPostList = async () => {
         }
     }
     logger.log("GetPostList....");
-    return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts?n=15&offset=0", {
+    return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts?n=15&offset=0", {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -172,7 +172,7 @@ const PostRemove = async (postId) => {
         }
     }
     logger.log("PostRemoving...");
-    return await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts/"+postId, {
+    return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts/"+postId, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
@@ -193,7 +193,7 @@ const PostRemove = async (postId) => {
     });
 }
 
-const Notice = async (title, body, isNotice = false) => {
+const Notice = async (title, body, isNotice = false, roleIds = []) => {
     let logger = new Logger("API:Notice");
     if (!isLogin) {
         logger.log("ReLogin");
@@ -204,7 +204,7 @@ const Notice = async (title, body, isNotice = false) => {
         }
     }
     logger.log("Sending VRChat server....");
-    await fetch("https://vrchat.com/api/1/groups/" + config.groupId + "/posts", {
+    await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -215,7 +215,9 @@ const Notice = async (title, body, isNotice = false) => {
             text: body,
             title: title,
             imageId: null,
-            sendNotification: isNotice
+            sendNotification: isNotice,
+            roleIds: roleIds,
+            visibility: "group"
         })
     }).then((r) => {
         if (config.debug) console.log("[" + r.status + "] " + r.statusText);
@@ -230,14 +232,14 @@ const Notice = async (title, body, isNotice = false) => {
     });
 }
 
-const UpdatePost = async (title, body, isNotice = false) => {
+const UpdatePost = async (title, body, isNotice = false, roleIds = []) => {
     const alllist = GetPostList();
     const list = await alllist;
     if (config.debug) console.log(list);
     list["posts"].filter((post) => post.title == title).forEach(async post => {
         await PostRemove(post.id);
     });
-    Notice(title, body, isNotice);
+    Notice(title, body, isNotice, roleIds);
 }
 
 const Main = async () => {
@@ -254,7 +256,9 @@ const Main = async () => {
     // ログイン確認
     await fetch("https://api.vrchat.cloud/api/1/auth/user", {
         headers: {
-            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+            "Content-Type": "application/json",
+            "User-Agent": userAgent,
         }
     }).then((r) => {
         DEBUGLOG("Main, Cookiecheck header", r);
