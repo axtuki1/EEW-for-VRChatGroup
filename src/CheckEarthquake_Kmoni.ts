@@ -25,6 +25,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
         "7": 9,
     };
     public noticeIntensity = 4;
+    public noticeIntensityForSupporter = 3;
 
     public constructor(callback: Function) {
         super(callback);
@@ -39,6 +40,9 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
     public Start() {
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
+        }
+        if (this.intensityTable[config.settings.noticeIntensityForSupporter] !== undefined) {
+            this.noticeIntensityForSupporter = this.intensityTable[config.settings.noticeIntensityForSupporter];
         }
         const URL = config.Kmoni.DataURL;
         this.intervalTimer = setInterval(async () => {
@@ -65,7 +69,11 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
     public DataProcess(data) {
         this.lastResponse = data;
         let update = false, reason = "";
-        if (this.intensityTable[data.calcintensity] < this.noticeIntensity && Number(this.lastData.report_id) != Number(data.report_id)) {
+        if (
+            this.intensityTable[data.calcintensity] < this.noticeIntensity &&
+            this.intensityTable[data.calcintensity] < this.noticeIntensityForSupporter &&
+            Number(this.lastData.report_id) != Number(data.report_id)
+        ) {
             return;
         }
         if (
@@ -82,6 +90,15 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
             reason = "キャンセル";
             update = true;
         }
+
+        let roleIds = [];
+        if (
+            this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] &&
+            this.intensityTable[data.calcintensity] < this.noticeIntensity
+        ) {
+            roleIds = config.supporterRoleIds;
+        }
+
         if (update && data.report_id != "") {
             this.lastData = {
                 report_id: data.report_id,
@@ -92,10 +109,10 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
             };
             console.log("データ受信: [" + data.alertflg + "] " + data.report_id + " Scale: " + data.calcintensity + " ReportNum: " + data.report_num + " isFinal: " + data.is_final + " isCancel: " + data.is_cancel + " is_training: " + data.is_training);
             if(config.settings.UpdateReason) console.log("  - "+reason);
-            this.SendData(data);
+            this.SendData(data, roleIds);
         }
     }
-    public SendData(data) {
+    public SendData(data, roleIds = []) {
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         let sendMsg = config.settings.sendMsg;
         sendMsg = sendMsg.replaceAll("${isTraining}", data.is_training ? "--訓練-- " : "");
@@ -111,7 +128,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback(config.settings.sendTitle,sendMsg,true);
+        this.callback(config.settings.sendTitle,sendMsg,true,roleIds);
     }
     public WebAPI(router) {
         router.get("/api/v1/lastResponse", (req, res) => {
@@ -124,7 +141,14 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
             const data = req.body;
             data.is_training = true;
             data.region_name = "[試験データ]" + data.region_name;
-            this.SendData(data);
+            let roleIds = [];
+            if (
+                this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] &&
+                this.intensityTable[data.calcintensity] < this.noticeIntensity
+            ) {
+                roleIds = config.supporterRoleIds;
+            }
+            this.SendData(data, roleIds);
             res.json({
                 status: "ok"
             });
