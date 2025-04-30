@@ -143,7 +143,6 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
             data.region_name = "[試験データ]" + data.region_name;
             let roleIds = [];
             if (
-                this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] &&
                 this.intensityTable[data.calcintensity] < this.noticeIntensity
             ) {
                 roleIds = config.supporterRoleIds;
