@@ -69,6 +69,8 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
     public DataProcess(data) {
         this.lastResponse = data;
         let update = false, reason = "";
+        // 支援者向け？
+        let isSupporter = false;
         if (
             this.intensityTable[data.calcintensity] < this.noticeIntensity &&
             this.intensityTable[data.calcintensity] < this.noticeIntensityForSupporter &&
@@ -93,10 +95,17 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
 
         let roleIds = [];
         if (
-            this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] &&
-            this.intensityTable[data.calcintensity] < this.noticeIntensity
+            // 支援者向け条件
+            (this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] && // 支援者向け通知しきい値以上の震度 かつ
+                this.intensityTable[data.calcintensity] < this.noticeIntensity) // 震度が通常通知しきい値未満
+            // 前回のIDと同じで、前回が支援者向け通知である場合のみ支援者向け通知を行う
+            && (Number(this.lastData.report_id) == Number(data.report_id) && this.lastData.isSupporter)
         ) {
             roleIds = config.supporterRoleIds;
+            isSupporter = true;
+        } else {
+            // 前回が全体通知の場合、今回も全体通知とする
+            isSupporter = false;
         }
 
         if (update && data.report_id != "") {
@@ -105,13 +114,15 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
                 report_num: data.report_num,
                 is_final: data.is_final,
                 is_cancel: data.is_cancel,
-                calcintensity: data.calcintensity
+                calcintensity: data.calcintensity,
+                isSupporter: isSupporter
             };
             console.log("データ受信: [" + data.alertflg + "] " + data.report_id + " Scale: " + data.calcintensity + " ReportNum: " + data.report_num + " isFinal: " + data.is_final + " isCancel: " + data.is_cancel + " is_training: " + data.is_training);
             if(config.settings.UpdateReason) console.log("  - "+reason);
             this.SendData(data, roleIds);
         }
     }
+    
     public SendData(data, roleIds = []) {
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         let sendMsg = config.settings.sendMsg;
