@@ -99,7 +99,11 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
             (this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] && // 支援者向け通知しきい値以上の震度 かつ
                 this.intensityTable[data.calcintensity] < this.noticeIntensity) // 震度が通常通知しきい値未満
             // 前回のIDと同じで、前回が支援者向け通知である場合のみ支援者向け通知を行う
-            && (Number(this.lastData.report_id) == Number(data.report_id) && this.lastData.isSupporter)
+            &&
+            (
+                (Number(this.lastData.report_id) == Number(data.report_id) && this.lastData.isSupporter) || 
+                Number(this.lastData.report_id) != Number(data.report_id)
+            )
         ) {
             roleIds = config.supporterRoleIds;
             isSupporter = true;
