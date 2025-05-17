@@ -121,7 +121,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
                 calcintensity: data.calcintensity,
                 isSupporter: isSupporter
             };
-            console.log("データ受信: [" + data.alertflg + "] " + data.report_id + " Scale: " + data.calcintensity + " ReportNum: " + data.report_num + " isFinal: " + data.is_final + " isCancel: " + data.is_cancel + " is_training: " + data.is_training);
+            console.log("データ受信: [" + data.alertflg + "] " + data.report_id + " Scale: " + data.calcintensity + " ReportNum: " + data.report_num + " isFinal: " + data.is_final + " isCancel: " + data.is_cancel + " is_training: " + data.is_training + " isSupporter: " + isSupporter);
             if(config.settings.UpdateReason) console.log("  - "+reason);
             this.SendData(data, roleIds);
         }
