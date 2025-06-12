@@ -7,7 +7,7 @@ const config = (() => {
     return parse(json.toString());
 })();
 
-export class CheckEarthquake_Kmoni extends CheckEarthquake{
+export class CheckEarthquake_Kmoni extends CheckEarthquake {
 
     private intervalTimer: NodeJS.Timeout;
     private lastData;
@@ -94,22 +94,37 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
         }
 
         let roleIds = [];
+        // 支援者判定
         if (
-            // 支援者向け条件
-            (this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] && // 支援者向け通知しきい値以上の震度 かつ
-                this.intensityTable[data.calcintensity] < this.noticeIntensity) // 震度が通常通知しきい値未満
-            // 前回のIDと同じで、前回が支援者向け通知である場合のみ支援者向け通知を行う
-            &&
-            (
-                (Number(this.lastData.report_id) == Number(data.report_id) && this.lastData.isSupporter) || 
-                Number(this.lastData.report_id) != Number(data.report_id)
-            )
+            // 新規のIDの場合
+            Number(this.lastData.report_id) != Number(data.report_id)
         ) {
-            roleIds = config.supporterRoleIds;
-            isSupporter = true;
+            // 震度判定をする
+            if (
+                this.noticeIntensityForSupporter <= this.intensityTable[data.calcintensity] && // 支援者向け通知しきい値以上の震度 かつ
+                this.intensityTable[data.calcintensity] < this.noticeIntensity // 震度が通常通知しきい値未満
+            ) {
+                roleIds = config.supporterRoleIds;
+                isSupporter = true;
+            } else {
+                // 通常通知
+                roleIds = config.roleIds;
+                isSupporter = false;
+            }
         } else {
-            // 前回が全体通知の場合、今回も全体通知とする
-            isSupporter = false;
+            // 前回のIDと同じ場合
+            // 通知済なので通常通知に繰り上げるか判定する
+
+            // 前回のデータが支援者向け通知だった場合
+            if (this.lastData.isSupporter) {
+                if (this.intensityTable[data.calcintensity] < this.noticeIntensity) {
+                    roleIds = config.supporterRoleIds;
+                    isSupporter = true;
+                }
+            } else {
+                // 前回が全体通知の場合、今回も全体通知とする
+                isSupporter = false;
+            }
         }
 
         if (update && data.report_id != "") {
@@ -122,11 +137,11 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
                 isSupporter: isSupporter
             };
             console.log("データ受信: [" + data.alertflg + "] " + data.report_id + " Scale: " + data.calcintensity + " ReportNum: " + data.report_num + " isFinal: " + data.is_final + " isCancel: " + data.is_cancel + " is_training: " + data.is_training + " isSupporter: " + isSupporter);
-            if(config.settings.UpdateReason) console.log("  - "+reason);
+            if (config.settings.UpdateReason) console.log("  - " + reason);
             this.SendData(data, roleIds);
         }
     }
-    
+
     public SendData(data, roleIds = []) {
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         let sendMsg = config.settings.sendMsg;
@@ -143,7 +158,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake{
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback(config.settings.sendTitle,sendMsg,true,roleIds);
+        this.callback(config.settings.sendTitle, sendMsg, true, roleIds);
     }
     public WebAPI(router) {
         router.get("/api/v1/lastResponse", (req, res) => {
