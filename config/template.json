@@ -15,6 +15,9 @@
     },
     // グループID
     "groupId": "grp_xxxxxxxxxxxxxxxxxxxxxxxx",
+    "supporterRoleIds": [
+        "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ],
     // データ取得元
     // P2P: P2P地震情報
     // Kmoni: 新強震モニタ(非推奨)
@@ -57,6 +60,8 @@
     "settings": {
         // 通知を行う最小震度
         "noticeIntensity": "4",
+        // 通知を行う最小震度(Supporter用)
+        "noticeIntensityForSupporter": "3",
         // タイトル
         "sendTitle": "緊急地震速報",
         // 書式
