@@ -5,6 +5,7 @@ import { CheckEarthquake_P2P } from "./CheckEarthquake_P2P";
 import * as OTPAuth from "otpauth";
 import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
+import { CheckEarthquake_DMDATA } from "./CheckEarthquake_DMDATA";
 const { parse } = require("jsonc-parser");
 const config = (() => {
     const json = fs.readFileSync("./config/config.json");
@@ -81,7 +82,7 @@ const Login = async () => {
             isLogin = false;
             isTwoFactorAuth = true;
             otpType = json.requiresTwoFactorAuth;
-            logger.log("Requires TwoFactorAuth");
+            logger.info("Requires TwoFactorAuth");
             return;
         }
         userData = json;
@@ -94,7 +95,7 @@ const Login = async () => {
             if (totpObj != null && otpType[i] == "totp") {
                 token = totpObj.generate();
             }
-            logger.log("Try auth: " + otpType[i] + " / " + token);
+            logger.info("Try auth: " + otpType[i] + " / " + token);
             await fetch("https://api.vrchat.cloud/api/1/auth/twofactorauth/" + otpType[i] + "/verify", {
                 method: "POST",
                 headers: {
@@ -119,12 +120,12 @@ const Login = async () => {
                 DEBUGLOG("Login, otp", json);
                 if (json.requiresTwoFactorAuth) {
                     isLogin = false;
-                    logger.log("TwoFactorAuth failed...");
+                    logger.info("TwoFactorAuth failed...");
                     return;
                 }
                 userData = json;
             }).catch((e) => {
-                logger.log(e);
+                logger.info(e);
             });
             if (isLogin) break;
         }
@@ -134,10 +135,10 @@ const Login = async () => {
 const GetPostList = async () => {
     let logger = new Logger("API:PostList");
     if (!isLogin) {
-        logger.log("ReLogin");
+        logger.info("ReLogin");
         await Login();
         if (!isLogin) {
-            logger.log("Cancel");
+            logger.info("Cancel");
             return;
         }
     }
@@ -151,20 +152,20 @@ const GetPostList = async () => {
         },
         body: null
     }).then((r) => {
-        if (config.debug) logger.log("[" + r.status + "] " + r.statusText);
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
         if (r.status == 200) {
             return r.json();
         }
     }).catch((e) => {
         isLogin = false;
-        logger.log(e);
+        logger.info(e);
     });
 }
 
 const PostRemove = async (postId) => {
     let logger = new Logger("API:PostRemove");
     if (!isLogin) {
-        logger.log("ReLogin");
+        logger.info("ReLogin");
         await Login();
         if (!isLogin) {
             console.log("Cancel");
@@ -181,25 +182,25 @@ const PostRemove = async (postId) => {
         },
         body: null
     }).then((r) => {
-        if (config.debug) logger.log("[" + r.status + "] " + r.statusText);
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
         if (r.status == 200) {
             return r.json();
         }
     }).then((json) => {
-        if (config.debug) logger.log(json);
+        if (config.debug) logger.info(json);
     }).catch((e) => {
         isLogin = false;
-        logger.log(e);
+        logger.info(e);
     });
 }
 
 const Notice = async (title, body, isNotice = false, roleIds = []) => {
     let logger = new Logger("API:Notice");
     if (!isLogin) {
-        logger.log("ReLogin");
+        logger.info("ReLogin");
         await Login();
         if (!isLogin) {
-            logger.log("Cancel");
+            logger.info("Cancel");
             return;
         }
     }
@@ -228,22 +229,28 @@ const Notice = async (title, body, isNotice = false, roleIds = []) => {
         if (config.debug) console.log(json);
     }).catch((e) => {
         isLogin = false;
-        logger.log(e);
+        logger.info(e);
     });
 }
 
 const UpdatePost = async (title, body, isNotice = false, roleIds = []) => {
     const alllist = GetPostList();
     const list = await alllist;
-    if (config.debug) console.log(list);
-    list["posts"].filter((post) => post.title == title).forEach(async post => {
-        await PostRemove(post.id);
-    });
-    Notice(title, body, isNotice, roleIds);
+    try {
+        if (config.debug) console.log(list);
+        if (list != null) list["posts"].filter((post) => post.title == title).forEach(async post => {
+            await PostRemove(post.id);
+        });
+    } catch (e) {
+        console.log(e);
+        console.log("GetPostList: ");
+        console.log(list);
+    }
+    Notice(title, body, isNotice);
 }
 
 const Main = async () => {
-    
+
     let logger = new Logger("Main");
 
     if (fs.existsSync("secret/authCookie.txt")) {
@@ -275,28 +282,29 @@ const Main = async () => {
         }
         userData = json;
     }).catch((e) => {
-        logger.log(e);
+        logger.info(e);
     });
 
-    logger.log("Login check: " + Msg.YesNo(isLogin));
+    logger.info("Login check: " + Msg.YesNo(isLogin));
 
     if (!isLogin) {
         await Login();
     }
 
     if (!isLogin) {
-        logger.log("Login failed...");
+        logger.info("Login failed...");
         if (!config.debug) return;
     } else {
-        logger.log("Login Success!");
+        logger.info("Login Success!");
     }
 
     let timer: CheckEarthquake = null;
-    if (config.DataSource == "Kmoni") {
-        timer = new CheckEarthquake_Kmoni(UpdatePost);
-    } else {
+    if (config.DataSource == "P2P") {
         timer = new CheckEarthquake_P2P(UpdatePost);
-        
+    } else if (config.DataSource == "DMDATA") {
+        timer = new CheckEarthquake_DMDATA(UpdatePost);
+    } else {
+        timer = new CheckEarthquake_Kmoni(UpdatePost);
     }
     timer.Start();
 
@@ -309,16 +317,17 @@ const Main = async () => {
 
     timer.WebAPI(router);
 
-    process.on("SIGINT", function () {
+    const exitProcess = async () => {
+        console.log("Exitting...");
+        if (server != null) server.close();
+        if (timer != null) await timer.Stop();
+    }
+
+
+    process.on("SIGINT", async () => {
+        await exitProcess();
         process.exit(0);
     });
-
-    process.on("exit", function() {
-        console.log("Exitting...");
-        if (server != null) server.close(() => {
-            console.log("web server closed.");
-        });
-    })
 
     app.use(express.static('public'));
 
@@ -327,7 +336,7 @@ const Main = async () => {
     app.use(router);
 
     server = app.listen(TestDataPort, function () {
-        console.log("試験データ待受ポート: " + TestDataPort);
+        logger.info('Server is running on port: ' + TestDataPort);
     });
 
 }
