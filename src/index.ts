@@ -142,7 +142,7 @@ const GetPostList = async () => {
             return;
         }
     }
-    logger.log("GetPostList....");
+    logger.info("GetPostList....");
     return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts?n=15&offset=0", {
         method: "GET",
         headers: {
@@ -172,7 +172,7 @@ const PostRemove = async (postId) => {
             return;
         }
     }
-    logger.log("PostRemoving...");
+    logger.info("PostRemoving...");
     return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts/"+postId, {
         method: "DELETE",
         headers: {
@@ -204,7 +204,7 @@ const Notice = async (title, body, isNotice = false, roleIds = []) => {
             return;
         }
     }
-    logger.log("Sending VRChat server....");
+    logger.info("Sending VRChat server....");
     await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts", {
         method: "POST",
         headers: {
