@@ -4,14 +4,11 @@ import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
 import rndstr from "rndstr";
 import { DMDATA } from "./dmdata/DMDATA";
+import { Config } from "./config";
 const WebSocket = require("ws");
 const zlib = require("zlib");
 const expressWs = require('express-ws');
 const { parse } = require("jsonc-parser");
-const config = (() => {
-    const json = fs.readFileSync("./config/config.json");
-    return parse(json.toString());
-})();
 
 export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
@@ -37,6 +34,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         // "over": 12, // overはfromの値を見るので...
     };
     public noticeIntensity = 6;
+    public noticeIntensityForSupporter = 5;
     public intensityNameMaster = {
         "不明": "不明",
         "0": "0",
@@ -68,12 +66,18 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     public constructor(callback: Function) {
         super(callback);
         this.logger = new Logger("DMDATA");
-    }
-
-    public Start() {
+        const config = Config.get();
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
         }
+        if (this.intensityTable[config.settings.noticeIntensityForSupporter] !== undefined) {
+            this.noticeIntensityForSupporter = this.intensityTable[config.settings.noticeIntensityForSupporter];
+        }
+    }
+
+    public Start() {
+        const config = Config.get();
+
         // 接続処理....
 
         this.dmdata = new DMDATA(config.DMDATA.APIKey);
@@ -156,7 +160,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             const func = this.func[data.head.type];
             if (func != null) func(data, data.body);
         }
-        if (config.gatherData) {
+        if (Config.get().gatherData) {
             let nowTime = new Date().toLocaleDateString("ja-JP", {
                 year: "numeric", month: "2-digit",
                 day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"
@@ -188,6 +192,13 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     private knownData = {};
     public SendData(xmlData, notice: boolean = true) {
 
+        const config = Config.get();
+
+        // 支援者向けであるか
+        let isSupporter = false;
+        // 配信する役職ID
+        let roleIds = [];
+
         // === 配信条件の判定 ===
 
         if (
@@ -197,15 +208,30 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
 
+        // 新データ震度 undefinedの場合は下記条件でrejectされるはずなので早期に求めてもよい...はず
+        let newintensity = xmlData.body?.intensity?.forecastMaxInt?.to;
+        let isOver = false;
+        if (newintensity == "over") { // ～以上の場合はfromをとる
+            newintensity = xmlData.body?.intensity?.forecastMaxInt?.from;
+            isOver = true;
+        }
+
         if (xmlData.eventId in this.knownData) {
             // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
             // 最終報である
             // キャンセル情報である
             // 既存のデータよりも強い震度情報である
-            if(!(
+
+            // 既存データ震度
+            let oldintensity = this.knownData[xmlData.eventId].body?.intensity?.forecastMaxInt?.to;
+            if (oldintensity == "over") { // ～以上の場合はfromをとる
+                oldintensity = this.knownData[xmlData.eventId].body?.intensity?.forecastMaxInt?.from;
+            }
+
+            if (!(
                 xmlData.body.isLastInfo ||
                 xmlData.body.isCanceled ||
-                this.intensityTable[this.knownData[xmlData.eventId].body.intensity.forecastMaxInt.to] < this.intensityTable[xmlData.body.intensity.forecastMaxInt.to]
+                this.intensityTable[newintensity] < this.intensityTable[oldintensity]
             )) {
                 return;
             }
@@ -214,7 +240,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             if (!xmlData.body.isCanceled &&
                 (
                     xmlData.body.intensity == null ||
-                    this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity
+                    this.intensityTable[newintensity] < this.noticeIntensity &&
+                    this.intensityTable[newintensity] < this.noticeIntensityForSupporter
                 )) {
                 return;
             }
@@ -231,16 +258,51 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             this.knownData[xmlData.eventId] = xmlData;
         }
         this.scheduleRemoveOldKnownData(xmlData.eventId);
+        
+        // === 配信対象決定 ===
+
+        // ここまででxmlDataとthis.knownData[xmlData.eventId]はisSupporter除き同一のはず
+
+        // 記録されたデータに支援者情報がない場合は新規として扱う
+        this.logger.debug(xmlData.eventId);
+        if (this.knownData[xmlData.eventId].isSupporter === undefined) {
+            this.logger.debug("新規データを受信: " + xmlData.eventId);
+            // とりあえず書き込みはしておく
+            this.knownData[xmlData.eventId].isSupporter = false;
+            // 新規なので、普通に震度判定を行う
+            this.logger.debug("震度判定: " + newintensity);
+            this.logger.debug("震度判定値: " + this.intensityTable[newintensity]);
+            this.logger.debug("通常通知しきい値: " + this.noticeIntensity);
+            this.logger.debug("支援者向け通知しきい値: " + this.noticeIntensityForSupporter);
+            if (
+                this.noticeIntensityForSupporter <= this.intensityTable[newintensity] && // 支援者向け通知しきい値以上の震度 かつ
+                this.intensityTable[newintensity] < this.noticeIntensity // 震度が通常通知しきい値未満
+            ) {
+                roleIds = config.supporterRoleIds;
+                isSupporter = true;
+            } else {
+                // 通常通知
+                roleIds = [];
+                isSupporter = false;
+            }
+            this.logger.debug("支援者向け: " + isSupporter);
+            this.logger.debug("配信ロールID: " + roleIds);
+        } else {
+            this.logger.debug("既存データ: " + xmlData.eventId);
+            // 前回が支援者向け通知の場合、今回全体通知に繰り上げるか判定する
+            // ※最終報などで震度が下がった場合でも拾えるように全体通知しきい値を超えていないかで判定
+            if (this.knownData[xmlData.eventId].isSupporter) {
+                if (this.intensityTable[newintensity] < this.noticeIntensity) {
+                    roleIds = config.supporterRoleIds;
+                    isSupporter = true;
+                }
+            } else {
+                // 前回が全体通知の場合、今回も全体通知とする
+                isSupporter = false;
+            }
+        }
 
         // === 配信データ作成 ===
-
-        // 震度情報
-        let calcintensity = this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to];
-
-        if (calcintensity == "over") {
-            // 震度が"over"の場合、fromの値を見る
-            calcintensity = this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.from] + "以上";
-        }
 
         let data: any = {
             is_training: xmlData.body.isTraining,
@@ -249,7 +311,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"
             report_num: xmlData.serialNo,
             region_name: xmlData.body.earthquake.hypocenter.name,
-            calcintensity: calcintensity,
+            calcintensity: this.intensityNameMaster[newintensity] + (isOver ? "以上" : ""),
             magunitude: xmlData.body.earthquake.magnitude.value ? xmlData.body.earthquake.magnitude.value : "不明",
             depth: xmlData.body.earthquake.hypocenter.depth.value + xmlData.body.earthquake.hypocenter.depth.unit,
             origin_time: xmlData.body.earthquake.originTime
@@ -262,7 +324,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         const origin_time_min = origin_time_obj.getMinutes().toString().padStart(2, "0");
         const origin_time_sec = origin_time_obj.getSeconds().toString().padStart(2, "0");
         const origin_time = `${origin_time_year}年${origin_time_month}月${origin_time_day}日 ${origin_time_hour}:${origin_time_min}:${origin_time_sec}`;
-        let sendMsg = config.DMDATA.sendMsg;
+        let sendMsg:string = config.DMDATA.sendMsg;
         if (data.is_cancel) {
             sendMsg = config.DMDATA.cancelMsg;
             data = this.lastData;
@@ -283,7 +345,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback(config.settings.sendTitle, sendMsg, notice);
+        this.callback(config.settings.sendTitle, sendMsg, notice, roleIds);
     }
 
     // 旧データの削除処理
