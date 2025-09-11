@@ -44,3 +44,4 @@ secret/
 
 config/*
 !config/template.json
+!config/test.json

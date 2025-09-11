@@ -1,0 +1,50 @@
+// テスト用設定ファイル
+{
+    "apiKey": "<KEY>",
+    "authentication":{
+        "email": "<EMAIL>",
+        "password": "<PASSWORD>",
+        "OTP": {
+            "URI": "<URI>" 
+        }
+    },
+    "groupId": "<groupId>",
+    "supporterRoleIds": [
+        "<supporterRoleId1>",
+        "<supporterRoleId2>"
+    ],
+    "DataSource": "DMDATA",
+    "P2P": {
+        "NextReconnectDelay": 5,
+        "DataURL": "wss://api.p2pquake.net/v2/ws",
+        "EEWDetectData": {
+            "Ttile": "EEW検出",
+            "Body": "緊急地震速報の発表を検出しました。",
+            "Popup": true
+        }
+    },
+    "Kmoni": {
+        "Timeout": 1.5,
+        "DataURL": "http://www.kmoni.bosai.go.jp/webservice/hypo/eew/${timestamp}.json",
+    },
+    "DMDATA": {
+        "NextReconnectDelay": 2,
+        "MaxTryConnectCount": 5,
+        "APIKey": "<KEY>",
+        "sendMsg": "[TESTCODE]${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生",
+        "cancelMsg": "[TESTCODE:CANCEL]${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生"
+    },
+    "TestDataPort": 36580,
+    "settings":{
+        "noticeIntensity": "4",
+        "noticeIntensityForSupporter": "3",
+        "sendTitle": "EEW",
+        "sendMsg": "${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生",
+        "UpdateReason": true
+    },
+    "gatherData": false,
+    "OTPValue": "",
+    "contact": "contact@axtuki1.com",
+    "logLevel": "debug",
+    "debug": true
+}
