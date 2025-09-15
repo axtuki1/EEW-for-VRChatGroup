@@ -192,7 +192,7 @@ const PostRemove = async (postId) => {
     });
 }
 
-const Notice = async (title, body, isNotice = false, roleIds = []) => {
+const Notice = async (title, body, isNotice = false, roleIds) => {
     let logger = new Logger("API:Notice");
     if (!isLogin) {
         logger.info("ReLogin");
@@ -244,7 +244,7 @@ const UpdatePost = async (title, body, isNotice = false, roleIds = []) => {
         console.log("GetPostList: ");
         console.log(list);
     }
-    Notice(title, body, isNotice);
+    Notice(title, body, isNotice, roleIds);
 }
 
 const Main = async () => {
