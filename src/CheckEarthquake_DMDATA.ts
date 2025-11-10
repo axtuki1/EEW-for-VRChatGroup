@@ -143,9 +143,32 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         );
 
         if (ticket.error) {
+            // チケット作成に失敗したときは指定秒数待って再接続
             this.logger.error("Failed to create ticket:");
             this.logger.error(ticket.error);
-            this.Stop();
+            if(this.retryCount < Config.get().DMDATA.MaxTryConnectCount){
+                setTimeout(() => {
+                    this.connect();
+                }, Config.get().DMDATA.NextReconnectDelay * 1000);
+                this.retryCount++;
+            } else {
+                this.logger.error("Reached max retry count. Stop reconnecting.");
+                this.Stop();
+            }
+            return;
+        }
+        if (ticket.responseId === null || ticket.responseId === undefined) {
+            // そんなことはないので、再トライ
+            this.logger.error("Failed to create ticket: No response ID");
+            if(this.retryCount < Config.get().DMDATA.MaxTryConnectCount){
+                setTimeout(() => {
+                    this.connect();
+                }, Config.get().DMDATA.NextReconnectDelay * 1000);
+                this.retryCount++;
+            } else {
+                this.logger.error("Reached max retry count. Stop reconnecting.");
+                this.Stop();
+            }
             return;
         }
         this.logger.info("Ticket created: " + ticket.responseId);
