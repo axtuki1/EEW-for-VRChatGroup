@@ -208,6 +208,15 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
 
+        const isTraining = xmlData.status != "通常";
+        // 試験/訓練データ
+        if (
+            isTraining && !config.settings.isTrainningNotice
+        ) {
+            this.logger.info("試験/訓練データのため無視: " + xmlData.eventId);
+            return;
+        }
+
         // 新データ震度 undefinedの場合は下記条件でrejectされるはずなので早期に求めてもよい...はず
         let newintensity = xmlData.body?.intensity?.forecastMaxInt?.to;
         let isOver = false;
@@ -305,7 +314,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         // === 配信データ作成 ===
 
         let data: any = {
-            is_training: xmlData.body.isTraining,
+            is_training: isTraining,
             is_final: xmlData.body.isLastInfo,
             is_cancel: xmlData.body.isCanceled,
             alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"

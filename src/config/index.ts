@@ -42,6 +42,7 @@ export class Config {
         noticeIntensityForSupporter: string;
         sendTitle: string;
         sendMsg: string;
+        isTrainningNotice: boolean;
         UpdateReason: boolean;
     };
     OTPValue: string;

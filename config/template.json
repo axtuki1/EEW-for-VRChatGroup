@@ -66,6 +66,8 @@
         "sendTitle": "緊急地震速報",
         // 書式
         "sendMsg": "${isTraining}${alertFlg}[${report_num}]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生",
+        // 試験/訓練データの通知
+        "isTrainningNotice": false,
         // 更新理由の表示
         "UpdateReason": true,
     },
