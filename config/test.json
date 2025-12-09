@@ -38,6 +38,7 @@
     "settings":{
         "noticeIntensity": "4",
         "noticeIntensityForSupporter": "3",
+        "isTrainningNotice": true,
         "sendTitle": "EEW",
         "sendMsg": "${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生",
         "UpdateReason": true

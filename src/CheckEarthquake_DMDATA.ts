@@ -139,14 +139,14 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 // "VXSE53"  // 震源・震度に関する情報
             ],
             "json",
-            true
+            false // テスト報の受けとり
         );
 
         if (ticket.error) {
             // チケット作成に失敗したときは指定秒数待って再接続
             this.logger.error("Failed to create ticket:");
             this.logger.error(ticket.error);
-            if(this.retryCount < Config.get().DMDATA.MaxTryConnectCount){
+            if (this.retryCount < Config.get().DMDATA.MaxTryConnectCount) {
                 setTimeout(() => {
                     this.connect();
                 }, Config.get().DMDATA.NextReconnectDelay * 1000);
@@ -160,7 +160,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         if (ticket.responseId === null || ticket.responseId === undefined) {
             // そんなことはないので、再トライ
             this.logger.error("Failed to create ticket: No response ID");
-            if(this.retryCount < Config.get().DMDATA.MaxTryConnectCount){
+            if (this.retryCount < Config.get().DMDATA.MaxTryConnectCount) {
                 setTimeout(() => {
                     this.connect();
                 }, Config.get().DMDATA.NextReconnectDelay * 1000);
@@ -231,24 +231,33 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
 
+        const loggerPrefix = "[" + xmlData.eventId + "] ";
+
+        this.logger.debug(loggerPrefix + "電文受信");
+
         const isTraining = xmlData.status != "通常";
         // 試験/訓練データ
         if (
             isTraining && !config.settings.isTrainningNotice
         ) {
-            this.logger.info("試験/訓練データのため無視: " + xmlData.eventId);
+            this.logger.info(loggerPrefix + "試験/訓練データのため無視");
             return;
         }
 
         // 新データ震度 undefinedの場合は下記条件でrejectされるはずなので早期に求めてもよい...はず
         let newintensity = xmlData.body?.intensity?.forecastMaxInt?.to;
         let isOver = false;
+        this.logger.debug(loggerPrefix + "新データ震度(以上): " + newintensity);
         if (newintensity == "over") { // ～以上の場合はfromをとる
             newintensity = xmlData.body?.intensity?.forecastMaxInt?.from;
             isOver = true;
+            this.logger.debug(loggerPrefix + "overのためfromから取得");
+            this.logger.debug(loggerPrefix + "新データ震度(以下): " + newintensity);
         }
 
         if (xmlData.eventId in this.knownData) {
+            this.logger.debug(loggerPrefix + "配信済みのイベント? : yes");
+
             // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
             // 最終報である
             // キャンセル情報である
@@ -256,18 +265,30 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
             // 既存データ震度
             let oldintensity = this.knownData[xmlData.eventId].body?.intensity?.forecastMaxInt?.to;
+            this.logger.debug(loggerPrefix + "旧データ震度(以上): " + oldintensity);
             if (oldintensity == "over") { // ～以上の場合はfromをとる
                 oldintensity = this.knownData[xmlData.eventId].body?.intensity?.forecastMaxInt?.from;
+                this.logger.debug(loggerPrefix + "overなのでfromから取得");
+                this.logger.debug(loggerPrefix + "旧データ震度(以下): " + oldintensity);
             }
 
+            this.logger.debug(loggerPrefix + "配信条件確認");
+            this.logger.debug(loggerPrefix + "最終報(isLastInfo): " + xmlData.body.isLastInfo);
+            this.logger.debug(loggerPrefix + "キャンセル報(isCanceled): " + xmlData.body.isCanceled);
+            this.logger.debug(loggerPrefix + "震度比較: " + this.intensityTable[newintensity] + " > " + this.intensityTable[oldintensity]);
             if (!(
                 xmlData.body.isLastInfo ||
                 xmlData.body.isCanceled ||
-                this.intensityTable[newintensity] < this.intensityTable[oldintensity]
+                this.intensityTable[newintensity] > this.intensityTable[oldintensity]
             )) {
+                this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
                 return;
             }
         } else {
+            this.logger.debug(loggerPrefix + "配信済みのイベント? : no");
+            this.logger.debug(loggerPrefix + "配信条件確認");
+            this.logger.debug(loggerPrefix + "全体通知しきい値: " + this.intensityTable[newintensity] + " < " + this.noticeIntensity);
+            this.logger.debug(loggerPrefix + "支援者通知しきい値: " + this.intensityTable[newintensity] + " < " + this.noticeIntensityForSupporter);
             // 未配信データの場合
             if (!xmlData.body.isCanceled &&
                 (
@@ -275,10 +296,11 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                     this.intensityTable[newintensity] < this.noticeIntensity &&
                     this.intensityTable[newintensity] < this.noticeIntensityForSupporter
                 )) {
+                    this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
                 return;
             }
         }
-        
+
         // === 配信済みリストに登録 ===
 
         // キャンセル報の場合、既存のデータを取得してキャンセル情報を付与
@@ -290,22 +312,22 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             this.knownData[xmlData.eventId] = xmlData;
         }
         this.scheduleRemoveOldKnownData(xmlData.eventId);
-        
+
         // === 配信対象決定 ===
 
         // ここまででxmlDataとthis.knownData[xmlData.eventId]はisSupporter除き同一のはず
 
         // 記録されたデータに支援者情報がない場合は新規として扱う
-        this.logger.debug(xmlData.eventId);
+
         if (this.knownData[xmlData.eventId].isSupporter === undefined) {
             this.logger.debug("新規データを受信: " + xmlData.eventId);
             // とりあえず書き込みはしておく
             this.knownData[xmlData.eventId].isSupporter = false;
             // 新規なので、普通に震度判定を行う
-            this.logger.debug("震度判定: " + newintensity);
-            this.logger.debug("震度判定値: " + this.intensityTable[newintensity]);
-            this.logger.debug("通常通知しきい値: " + this.noticeIntensity);
-            this.logger.debug("支援者向け通知しきい値: " + this.noticeIntensityForSupporter);
+            this.logger.debug(loggerPrefix + "震度判定: " + newintensity);
+            this.logger.debug(loggerPrefix + "震度判定値: " + this.intensityTable[newintensity]);
+            this.logger.debug(loggerPrefix + "通常通知しきい値: " + this.noticeIntensity);
+            this.logger.debug(loggerPrefix + "支援者向け通知しきい値: " + this.noticeIntensityForSupporter);
             if (
                 this.noticeIntensityForSupporter <= this.intensityTable[newintensity] && // 支援者向け通知しきい値以上の震度 かつ
                 this.intensityTable[newintensity] < this.noticeIntensity // 震度が通常通知しきい値未満
@@ -317,10 +339,10 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 roleIds = [];
                 isSupporter = false;
             }
-            this.logger.debug("支援者向け: " + isSupporter);
-            this.logger.debug("配信ロールID: " + roleIds);
+            this.logger.debug(loggerPrefix + "支援者向け: " + isSupporter);
+            this.logger.debug(loggerPrefix + "配信ロールID: " + roleIds);
         } else {
-            this.logger.debug("既存データ: " + xmlData.eventId);
+            this.logger.debug(loggerPrefix + "既存データ: " + xmlData.eventId);
             // 前回が支援者向け通知の場合、今回全体通知に繰り上げるか判定する
             // ※最終報などで震度が下がった場合でも拾えるように全体通知しきい値を超えていないかで判定
             if (this.knownData[xmlData.eventId].isSupporter) {
@@ -356,7 +378,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         const origin_time_min = origin_time_obj.getMinutes().toString().padStart(2, "0");
         const origin_time_sec = origin_time_obj.getSeconds().toString().padStart(2, "0");
         const origin_time = `${origin_time_year}年${origin_time_month}月${origin_time_day}日 ${origin_time_hour}:${origin_time_min}:${origin_time_sec}`;
-        let sendMsg:string = config.DMDATA.sendMsg;
+        let sendMsg: string = config.DMDATA.sendMsg;
         if (data.is_cancel) {
             sendMsg = config.DMDATA.cancelMsg;
             data = this.lastData;

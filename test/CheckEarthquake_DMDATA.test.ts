@@ -53,7 +53,24 @@ describe("CheckEarthquake_DMDATA", () => {
         const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
 
         // 訓練報に変更
-        data.body.isTraining = true;
+        data.status = "訓練";
+
+        checkEarthquake.SendData(data, false);
+        expect(mockCallback).toHaveBeenCalledWith(
+            "EEW",
+            "[TESTCODE]--訓練-- /!警報! /第1報/トカラ列島近海/震度5弱/M5.6/深さ10km/2023年05月13日 07:10:27発生",
+            false,
+            []
+        );
+    });
+
+    test("試験報", () => {
+        const data = structuredClone(sample);
+        const mockCallback = jest.fn();
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+
+        // 訓練報に変更
+        data.status = "試験";
 
         checkEarthquake.SendData(data, false);
         expect(mockCallback).toHaveBeenCalledWith(
@@ -136,7 +153,7 @@ describe("CheckEarthquake_DMDATA", () => {
         const mockCallback = jest.fn();
         const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
 
-        // 最初の地震で震度を4に変更
+        // 最初の地震で震度を3に変更
         firstData.body.intensity.forecastMaxInt.to = "3"
         firstData.body.intensity.forecastMaxInt.from = "3"
 
@@ -157,7 +174,7 @@ describe("CheckEarthquake_DMDATA", () => {
         // 2回目
         const secondData = structuredClone(sample);
         
-        // 2回目の地震で震度を1に変更
+        // 2回目の地震で震度を4に変更
         secondData.body.isLastInfo = true;
         secondData.body.intensity.forecastMaxInt.to = "4"
         secondData.body.intensity.forecastMaxInt.from = "4"
