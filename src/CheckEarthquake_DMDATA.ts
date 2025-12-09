@@ -430,7 +430,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         });
         router.post("/api/v1/testDataInput", (req, res) => {
             const data = req.body;
-            data.body.body.isTraining = true;
+            data.body.status = "試験";
             data.body.body.earthquake.hypocenter.name = "[試験データ]" + data.body.body.earthquake.hypocenter.name;
             this.SendData(data.body, false);
             res.json({
