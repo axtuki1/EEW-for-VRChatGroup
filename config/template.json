@@ -11,6 +11,10 @@
         "OTP": {
             // otpauth://totp/... で始まるVRChat設定ページで発行されるQRコードの値。
             "URI": "otpauth://totp/VRChat:EMail@Address?secret=xxxxxxxx&issuer=VRChat"
+        },
+        "stadiamaps": {
+            // API Key
+            "apiKey": ""
         }
     },
     // グループID
@@ -46,7 +50,7 @@
         // 送信内容
         "sendMsg": "${isTraining}${alertFlg}[第${report_num}報]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生",
         // 
-        "cancelMsg": "[キャンセル] ${isTraining}${alertFlg}[第${report_num}報]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生"
+        "cancelMsg": "[キャンセル] ${isTraining}${alertFlg}[第${report_num}報]${region_name} 最大震度${intensity}\nM${magunitude} 深さ${depth} ${origin_time} 発生",
     },
     // 新強震モニタ設定
     "Kmoni": {
@@ -70,6 +74,79 @@
         "isTrainningNotice": false,
         // 更新理由の表示
         "UpdateReason": true,
+        // 新規メンバーのデフォルト役職ID
+        // いわゆるデフォルトで通知する情報を配信する対象。
+        // 対象機能: 
+        // ・震度4以上の地震を通知
+        "defaultRoleId": "",
+        // 緊急地震速報／地方予報区別ロール設定
+        "regionRoles": {
+            "9910": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "北海道"
+            },
+            "9920": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "東北"
+            },
+            "9931": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "関東"
+            },
+            "9932": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "伊豆諸島"
+            },
+            "9933": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "小笠原"
+            },
+            "9934": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "北陸"
+            },
+            "9935": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "甲信"
+            },
+            "9936": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "東海"
+            },
+            "9941": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "近畿"
+            },
+            "9942": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "中国"
+            },
+            "9943": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "四国"
+            },
+            "9951": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "九州"
+            },
+            "9952": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "奄美(群島)"
+            },
+            "9960": {
+                "roleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "name": "沖縄"
+            }
+        }
+    },
+    "features": {
+        // 本格稼働前の動作に戻す
+        // true: デフォルトロールを使用せず全体通知、サポーター用ロールのみ通知の2つ
+        // false: デフォルトロールへは従来通りの通知、
+        //        警報がある場合は地域別に通知を行う
+        "enableLegacyNotice": false,
+        // 津波警報VTSE41連携機能の有効化
+        "enableTsunamiAlert_VTSE41": false
     },
     "OTPValue": "", // 削除予定。メール認証もしくはアカウント情報内のOTP項目が空の場合に使用する。
     // 連絡先

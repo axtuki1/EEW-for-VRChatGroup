@@ -10,6 +10,9 @@ export class Config {
         password: string;
         OTP: {
             URI: string;
+        },
+        stadiamaps: {
+            apiKey: string;
         }
     };
     groupId: string;
@@ -44,7 +47,18 @@ export class Config {
         sendMsg: string;
         isTrainningNotice: boolean;
         UpdateReason: boolean;
+        defaultRoleId: string;
+        regionRoles: {
+            [regionCode: string]: {
+                roleId: string;
+                name: string;
+            };
+        }
     };
+    features: {
+        enableLegacyNotice: boolean;
+        enableTsunamiAlert_VTSE41: boolean;
+    }
     OTPValue: string;
     contact: string;
     logLevel: LogLevel;

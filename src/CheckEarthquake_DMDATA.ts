@@ -5,6 +5,7 @@ import { Logger } from "./util/logger";
 import rndstr from "rndstr";
 import { DMDATA } from "./dmdata/DMDATA";
 import { Config } from "./config";
+import { TsunamiAlert_VTSE41 } from "./module/dmdata/TsunamiAlert_VTSE41";
 const WebSocket = require("ws");
 const zlib = require("zlib");
 const expressWs = require('express-ws');
@@ -52,10 +53,23 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     private retryCount = 0;
     private currentTicket;
 
+    private tsunamiAlert_VTSE41: TsunamiAlert_VTSE41;
+
     private func = {
         "VXSE45": (data, xmlData) => {
             try {
                 this.SendData(xmlData);
+            } catch (e) {
+                this.logger.error("受信時処理でエラーが発生しました:");
+                console.log(e);
+            }
+        },
+        "VTSE41": (data, xmlData) => {
+            // 津波警報・注意報・予報
+            try {
+                if (this.tsunamiAlert_VTSE41 != null) {
+                    this.tsunamiAlert_VTSE41.ReceiveData(data, xmlData);
+                }
             } catch (e) {
                 this.logger.error("受信時処理でエラーが発生しました:");
                 console.log(e);
@@ -109,6 +123,9 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         this.connect();
 
+        if (config.features.enableTsunamiAlert_VTSE41) {
+            this.tsunamiAlert_VTSE41 = new TsunamiAlert_VTSE41(this.callback);
+        }
     }
     public Stop() {
         // 停止時処理...
@@ -134,7 +151,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 "VXSE44", // 緊急地震速報（予報）
                 "VXSE45", // 緊急地震速報（地震動予報）
                 // "VXSE51", // 震度速報
-                // "VTSE41", // 津波警報・注意報・予報
+                "VTSE41", // 津波警報・注意報・予報
                 // "VXSE52", // 震源に関する情報
                 // "VXSE53"  // 震源・震度に関する情報
             ],
@@ -332,11 +349,20 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 this.noticeIntensityForSupporter <= this.intensityTable[newintensity] && // 支援者向け通知しきい値以上の震度 かつ
                 this.intensityTable[newintensity] < this.noticeIntensity // 震度が通常通知しきい値未満
             ) {
-                roleIds = config.supporterRoleIds;
+                roleIds = [...config.supporterRoleIds];
                 isSupporter = true;
             } else {
                 // 通常通知
                 roleIds = [];
+                if (!config.features.enableLegacyNotice) {
+                    // デフォルトロールが設定されていれば追加
+                    if (
+                        config.settings.defaultRoleId &&
+                        config.settings.defaultRoleId.length > 0
+                    ) {
+                        roleIds.push(config.settings.defaultRoleId);
+                    }
+                }
                 isSupporter = false;
             }
             this.logger.debug(loggerPrefix + "支援者向け: " + isSupporter);
@@ -347,7 +373,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             // ※最終報などで震度が下がった場合でも拾えるように全体通知しきい値を超えていないかで判定
             if (this.knownData[xmlData.eventId].isSupporter) {
                 if (this.intensityTable[newintensity] < this.noticeIntensity) {
-                    roleIds = config.supporterRoleIds;
+                    roleIds = [...config.supporterRoleIds];
                     isSupporter = true;
                 }
             } else {
@@ -399,6 +425,26 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
+
+
+        // 警報の地域別ロール設定
+        if (!config.features.enableLegacyNotice) {
+            if (xmlData.body.zones && xmlData.body.zones.length > 0) {
+                xmlData.body.zones.forEach(zone => {
+                    if (
+                        zone.kind.code === "31" &&
+                        roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) === -1
+                    ) {
+                        roleIds.push(config.settings.regionRoles[zone.code]?.roleId);
+                    } else if (
+                        roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) !== -1
+                    ) {
+                        roleIds.splice(roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId), 1);
+                    }
+                });
+            }
+        }
+
         this.callback(config.settings.sendTitle, sendMsg, notice, roleIds);
     }
 
