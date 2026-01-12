@@ -94,7 +94,8 @@ export class GeoMap {
 
     constructor(fontOption?: FontOptions) {
         // カスタムフォントの登録
-        if (fontOption && fs.existsSync(fontOption.fontPath)) {
+        fontOption = fontOption || { fontPath: path.join(__dirname, '../../../assets/fonts/IBMPlexSansJP-Bold.ttf') };
+        if (fs.existsSync(fontOption.fontPath)) {
             registerFont(fontOption.fontPath, { family: 'custom' });
             // フォントを使用するために一度描画しておく
             // Canvasライブラリを事前初期化（ネイティブモジュールの読み込み）

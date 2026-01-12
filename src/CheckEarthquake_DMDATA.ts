@@ -6,6 +6,7 @@ import rndstr from "rndstr";
 import { DMDATA } from "./dmdata/DMDATA";
 import { Config } from "./config";
 import { TsunamiAlert_VTSE41 } from "./module/dmdata/TsunamiAlert_VTSE41";
+import { GeoMap } from "./module/geomap";
 const WebSocket = require("ws");
 const zlib = require("zlib");
 const expressWs = require('express-ws');
@@ -52,6 +53,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     }
     private retryCount = 0;
     private currentTicket;
+    private imagePostFunc: Function;
+    private geoMap: GeoMap = new GeoMap();
 
     private tsunamiAlert_VTSE41: TsunamiAlert_VTSE41;
 
@@ -77,9 +80,11 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         }
     }
 
-    public constructor(callback: Function) {
+    // 元々の設計が悪い
+    public constructor(callback: Function, imagePostFunc: Function) {
         super(callback);
         this.logger = new Logger("DMDATA");
+        this.imagePostFunc = imagePostFunc;
         const config = Config.get();
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
@@ -230,7 +235,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     */
     private lastData = {};
     private knownData = {};
-    public SendData(xmlData, notice: boolean = true) {
+    public async SendData(xmlData, notice: boolean = true) {
 
         const config = Config.get();
 
@@ -238,6 +243,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         let isSupporter = false;
         // 配信する役職ID
         let roleIds = [];
+        // 添付する画像
+        let imageId = null;
 
         // === 配信条件の判定 ===
 
@@ -276,6 +283,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             this.logger.debug(loggerPrefix + "配信済みのイベント? : yes");
 
             // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
+            // 画像添付が必要である
             // 最終報である
             // キャンセル情報である
             // 既存のデータよりも強い震度情報である
@@ -290,6 +298,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             }
 
             this.logger.debug(loggerPrefix + "配信条件確認");
+            this.logger.debug(loggerPrefix + "画像添付要: " + this.knownData[xmlData.eventId].vrcNextAttach);
             this.logger.debug(loggerPrefix + "最終報(isLastInfo): " + xmlData.body.isLastInfo);
             this.logger.debug(loggerPrefix + "キャンセル報(isCanceled): " + xmlData.body.isCanceled);
             this.logger.debug(loggerPrefix + "震度比較: " + this.intensityTable[newintensity] + " > " + this.intensityTable[oldintensity]);
@@ -313,7 +322,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                     this.intensityTable[newintensity] < this.noticeIntensity &&
                     this.intensityTable[newintensity] < this.noticeIntensityForSupporter
                 )) {
-                    this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
+                this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
                 return;
             }
         }
@@ -367,6 +376,53 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             }
             this.logger.debug(loggerPrefix + "支援者向け: " + isSupporter);
             this.logger.debug(loggerPrefix + "配信ロールID: " + roleIds);
+
+            // 初回の画像生成
+            if (xmlData.body.isLastInfo) {
+                this.logger.debug(loggerPrefix + "最終報の生成");
+                // 初回通知にもかかわらず最終報
+                const imageData = await new Promise<any>(async (resolve) => {
+                    const mapImage = await this.geoMap.generateMap({
+                        latitude: xmlData.body.earthquake.hypocenter.latitude.value,
+                        longitude: xmlData.body.earthquake.hypocenter.longitude.value,
+                        magnitude: xmlData.body.earthquake.magnitude.value,
+                        intensity: this.intensityNameMaster[newintensity],
+                        depth: xmlData.body.earthquake.hypocenter.depth.value,
+                        location: xmlData.body.earthquake.hypocenter.name,
+                        serial: xmlData.serialNo,
+                        isLast: xmlData.body.isLastInfo,
+                        originTime: xmlData.body.earthquake.originTime,
+                    });
+                    resolve(await this.imagePostFunc(xmlData.eventId, mapImage));
+                });
+
+                imageId = imageData.id;
+                this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
+                this.knownData[xmlData.eventId].vrcNextAttach = false;
+                this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
+            } else if(!this.knownData[xmlData.eventId].vrcUploadedImageId) {
+                // 画像生成 生成した画像は次の配信で添付するのでPromiseに投げっぱなしでいい
+                this.logger.debug(loggerPrefix + "画像生成");
+                new Promise<any>(async (resolve) => {
+                    const mapImage = await this.geoMap.generateMap({
+                        latitude: xmlData.body.earthquake.hypocenter.latitude.value,
+                        longitude: xmlData.body.earthquake.hypocenter.longitude.value,
+                        magnitude: xmlData.body.earthquake.magnitude.value,
+                        intensity: this.intensityNameMaster[newintensity],
+                        depth: xmlData.body.earthquake.hypocenter.depth.value,
+                        location: xmlData.body.earthquake.hypocenter.name,
+                        serial: xmlData.serialNo,
+                        isLast: xmlData.body.isLastInfo,
+                        originTime: xmlData.body.earthquake.originTime,
+                    });
+                    resolve(await this.imagePostFunc(xmlData.eventId, mapImage));
+                }).then((imageData) => {
+                    this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
+                    this.knownData[xmlData.eventId].vrcNextAttach = true;
+                    this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
+                });
+            }
+
         } else {
             this.logger.debug(loggerPrefix + "既存データ: " + xmlData.eventId);
             // 前回が支援者向け通知の場合、今回全体通知に繰り上げるか判定する
@@ -379,6 +435,38 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             } else {
                 // 前回が全体通知の場合、今回も全体通知とする
                 isSupporter = false;
+            }
+
+            // 最終報であるか
+            if (xmlData.body.isLastInfo) {
+                this.logger.debug(loggerPrefix + "最終報のため画像再生成");
+                // 画像再生成
+                const imageData = await new Promise<any>(async (resolve) => {
+                    const mapImage = await this.geoMap.generateMap({
+                        latitude: xmlData.body.earthquake.hypocenter.latitude.value,
+                        longitude: xmlData.body.earthquake.hypocenter.longitude.value,
+                        magnitude: xmlData.body.earthquake.magnitude.value,
+                        intensity: this.intensityNameMaster[newintensity],
+                        depth: xmlData.body.earthquake.hypocenter.depth.value,
+                        location: xmlData.body.earthquake.hypocenter.name,
+                        serial: xmlData.serialNo,
+                        isLast: xmlData.body.isLastInfo,
+                        originTime: xmlData.body.earthquake.originTime,
+                    });
+                    resolve(await this.imagePostFunc(xmlData.eventId, mapImage));
+                });
+
+                imageId = imageData.id;
+                this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
+                this.knownData[xmlData.eventId].vrcNextAttach = false;
+                this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
+            } else {
+                if (this.knownData[xmlData.eventId].vrcNextAttach) {
+                    this.logger.debug(loggerPrefix + "画像再添付あり");
+                    // 画像再添付あり
+                    this.knownData[xmlData.eventId].vrcNextAttach = false;
+                    imageId = this.knownData[xmlData.eventId].vrcUploadedImageId;
+                }
             }
         }
 
@@ -445,7 +533,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             }
         }
 
-        this.callback(config.settings.sendTitle, sendMsg, notice, roleIds);
+        this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, imageId);
     }
 
     // 旧データの削除処理

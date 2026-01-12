@@ -171,7 +171,7 @@ const PostRemove = async (postId) => {
         }
     }
     logger.info("PostRemoving...");
-    return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts/"+postId, {
+    return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts/" + postId, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
@@ -192,7 +192,7 @@ const PostRemove = async (postId) => {
     });
 }
 
-const Notice = async (title, body, isNotice = false, roleIds) => {
+const Notice = async (title, body, isNotice = false, roleIds = [], imageId = null) => {
     let logger = new Logger("API:Notice");
     if (!isLogin) {
         logger.info("ReLogin");
@@ -213,7 +213,7 @@ const Notice = async (title, body, isNotice = false, roleIds) => {
         body: JSON.stringify({
             text: body,
             title: title,
-            imageId: null,
+            imageId,
             sendNotification: isNotice,
             roleIds: roleIds,
             visibility: "group"
@@ -231,7 +231,7 @@ const Notice = async (title, body, isNotice = false, roleIds) => {
     });
 }
 
-const UpdatePost = async (title, body, isNotice = false, roleIds = []) => {
+const UpdatePost = async (title, body, isNotice = false, roleIds = [], imageId = null) => {
     const alllist = GetPostList();
     const list = await alllist;
     try {
@@ -244,7 +244,123 @@ const UpdatePost = async (title, body, isNotice = false, roleIds = []) => {
         console.log("GetPostList: ");
         console.log(list);
     }
-    Notice(title, body, isNotice, roleIds);
+    Notice(title, body, isNotice, roleIds, imageId);
+}
+
+const ImageList = async () => {
+    let logger = new Logger("API:ImageList");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return;
+        }
+    }
+    logger.info("GetImageList....");
+    return await fetch("https://api.vrchat.cloud/api/1/files?tag=gallery&n=100", {
+        method: "GET",
+        headers: {
+            "User-Agent": userAgent,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+        }
+    }).then((r) => {
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        logger.info(e);
+    });
+}
+
+const ImageRemove = async (imageId) => {
+    let logger = new Logger("API:ImageRemove");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return;
+        }
+    }
+    logger.info("Image Removing...");
+    return await fetch("https://api.vrchat.cloud/api/1/file/" + imageId, {
+        method: "DELETE",
+        headers: {
+            "User-Agent": userAgent,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+        }
+    }).then((r) => {
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        logger.info(e);
+    });
+}
+
+const ImagePost = async (imageBlob: Blob) => {
+    let logger = new Logger("API:ImagePost");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return null;
+        }
+    }
+    logger.info("Image Posting....");
+
+    const formData = new FormData();
+
+    formData.append("file", imageBlob);
+    formData.append("tag", "gallery");
+
+    return await fetch("https://api.vrchat.cloud/api/1/file/image", {
+        method: "POST",
+        headers: {
+            "User-Agent": userAgent,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+            'Content-Type': 'multipart/form-data',
+        },
+        body: formData
+    }).then((r) => {
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        logger.info(e);
+    });
+}
+
+const ImageReplace = async (imageBlob: Blob, oldImageId?: string) => {
+    let logger = new Logger("API:ImageReplace");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return null;
+        }
+    }
+    logger.info("Image Replacing....");
+    if (oldImageId) {
+        await ImageRemove(oldImageId);
+    } else {
+        const imageList = await ImageList();
+        if (imageList && imageList.length > 0) {
+            imageList.forEach(async element => {
+                await ImageRemove(element.id);
+            });
+        }
+    }
+    return await ImagePost(imageBlob);
 }
 
 const Main = async () => {
@@ -300,7 +416,7 @@ const Main = async () => {
     if (config.DataSource == "P2P") {
         timer = new CheckEarthquake_P2P(UpdatePost);
     } else if (config.DataSource == "DMDATA") {
-        timer = new CheckEarthquake_DMDATA(UpdatePost);
+        timer = new CheckEarthquake_DMDATA(UpdatePost, ImageReplace);
     } else {
         timer = new CheckEarthquake_Kmoni(UpdatePost);
     }

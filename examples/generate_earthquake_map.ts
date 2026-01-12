@@ -12,9 +12,7 @@ import { EarthquakeInfo } from '../src/module/geomap/types';
 
 async function main() {
     console.log('初期化中...');
-    const geoMap = new GeoMap({
-        fontPath: path.join(__dirname, '../assets/fonts/IBMPlexSansJP-Bold.ttf'),
-    });
+    const geoMap = new GeoMap();
 
     const outputDir = path.join(__dirname, '../output');
     if (!fs.existsSync(outputDir)) {
