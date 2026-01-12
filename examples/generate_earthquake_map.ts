@@ -15,32 +15,55 @@ async function main() {
     const geoMap = new GeoMap({
         fontPath: path.join(__dirname, '../assets/fonts/IBMPlexSansJP-Bold.ttf'),
     });
-    console.log('初期化完了！\n');
-
-    console.log('地図画像を生成しています...\n');
-
-    // 例1: 能登半島地震（周辺ズーム）
-    console.log('1. 能登半島地震の地図を生成中（震源地周辺にズーム）...');
-    const notoEarthquake: EarthquakeInfo = {
-        latitude: 37.5,
-        longitude: 137.2,
-        magnitude: 7.6,
-        intensity: "6強",
-        depth: 10,
-        location: '石川県能登地方',
-    };
-    
-    const notoMap = await geoMap.generateMap(notoEarthquake, {
-        debug: false,
-    });
 
     const outputDir = path.join(__dirname, '../output');
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
 
+    console.log('初期化完了！\n');
+
+    console.log('地図画像を生成しています...\n');
+
+    // 例1: 能登半島地震（周辺ズーム）
+    console.log('1. 能登半島地震の地図を生成中...');
+
+    const notoMap = await geoMap.generateMap({
+        latitude: 37.5,
+        longitude: 137.2,
+        magnitude: 7.6,
+        intensity: "5強",
+        depth: 10,
+        location: '石川県能登地方',
+        serial: 1,
+        isLast: true,
+        originTime: '2007-03-25T10:13:00+09:00',
+    }, {
+        debug: false,
+    });
+
     fs.writeFileSync(path.join(outputDir, 'noto_earthquake.png'), notoMap);
     console.log(`   ✓ 保存完了: output/noto_earthquake.png\n`);
+
+    // 例2: 東北地方太平洋沖地震
+    console.log('2. 東北地方太平洋沖地震の地図を生成中...');
+    const tohokuMap = await geoMap.generateMap({
+        latitude: 38.322,
+        longitude: 142.369,
+        magnitude: 9.0,
+        intensity: "7",
+        depth: 29,
+        location: '三陸沖',
+        serial: 315,
+        isLast: true,
+    }, {
+        debug: false,
+    });
+
+    fs.writeFileSync(path.join(outputDir, 'tohoku_earthquake.png'), tohokuMap);
+    console.log(`   ✓ 保存完了: output/tohoku_earthquake.png\n`);
+
+
 
     console.log('========================================');
     console.log('すべての地図画像の生成が完了しました！');

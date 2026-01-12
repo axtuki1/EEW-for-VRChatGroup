@@ -3,10 +3,13 @@
 export interface EarthquakeInfo {
     latitude: number;    // 緯度
     longitude: number;   // 経度
+    serial: number;     // 発表番号
+    isLast: boolean;     // 最終報かどうか
     intensity?: "1" | "2" | "3" | "4" | "5弱" | "5強" | "6弱" | "6強" | "7";  // 震度
     magnitude?: number;  // マグニチュード
     depth?: number | "ごく浅い";      // 深さ (km)
     location?: string;   // 震源地名
+    originTime?: string | Date; // 発生日時 (ISO 8601形式)
 }
 
 export interface FontOptions {
