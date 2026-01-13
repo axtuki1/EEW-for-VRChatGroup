@@ -243,6 +243,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         let isSupporter = false;
         // 配信する役職ID
         let roleIds = [];
+        // 配信する役職ID(画像付き用)
+        let roleIdsForPhoto = [];
         // 添付する画像
         let imageId = null;
 
@@ -383,8 +385,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 // 初回通知にもかかわらず最終報
                 const imageData = await new Promise<any>(async (resolve) => {
                     const mapImage = await this.geoMap.generateMap({
-                        latitude: xmlData.body.earthquake.hypocenter.latitude.value,
-                        longitude: xmlData.body.earthquake.hypocenter.longitude.value,
+                        latitude: xmlData.body.earthquake.hypocenter.coordinate.latitude.value,
+                        longitude: xmlData.body.earthquake.hypocenter.coordinate.longitude.value,
                         magnitude: xmlData.body.earthquake.magnitude.value,
                         intensity: this.intensityNameMaster[newintensity],
                         depth: xmlData.body.earthquake.hypocenter.depth.value,
