@@ -5,16 +5,16 @@
  * yarn ts-node examples/generate_earthquake_map.ts
  */
 
-import { GeoMap } from '../src/module/geomap';
+import { GeoMap } from '../module/geomap';
 import * as fs from 'fs';
 import * as path from 'path';
-import { EarthquakeInfo } from '../src/module/geomap/types';
+import { EarthquakeInfo } from '../module/geomap/types';
 
 async function main() {
     console.log('初期化中...');
     const geoMap = new GeoMap();
 
-    const outputDir = path.join(__dirname, '../output');
+    const outputDir = path.join(__dirname, '../../output');
     if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
     }
