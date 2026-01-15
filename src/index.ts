@@ -303,7 +303,7 @@ const ImageRemove = async (imageId) => {
     });
 }
 
-const ImagePost = async (imageBlob: Blob) => {
+const ImagePost = async (imagebuffer: Buffer) => {
     let logger = new Logger("API:ImagePost");
     if (!isLogin) {
         logger.info("ReLogin");
@@ -316,8 +316,8 @@ const ImagePost = async (imageBlob: Blob) => {
     logger.info("Image Posting....");
 
     const formData = new FormData();
-
-    formData.append("file", imageBlob);
+    
+    formData.append("file", new Blob([new Uint8Array(imagebuffer)], { type: 'image/png' }), "image.png");
     formData.append("tag", "gallery");
 
     return await fetch("https://api.vrchat.cloud/api/1/file/image", {
@@ -339,7 +339,7 @@ const ImagePost = async (imageBlob: Blob) => {
     });
 }
 
-const ImageReplace = async (imageBlob: Blob, oldImageId?: string) => {
+const ImageReplace = async (imagebuffer: Buffer, oldImageId?: string) => {
     let logger = new Logger("API:ImageReplace");
     if (!isLogin) {
         logger.info("ReLogin");
@@ -360,7 +360,7 @@ const ImageReplace = async (imageBlob: Blob, oldImageId?: string) => {
             });
         }
     }
-    return await ImagePost(imageBlob);
+    return await ImagePost(imagebuffer);
 }
 
 const Main = async () => {
