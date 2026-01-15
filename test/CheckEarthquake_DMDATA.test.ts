@@ -9,6 +9,17 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     let config: ReturnType<typeof Config.load>;
     let sample: any;
 
+    const imageSend = (name: string) => {
+
+        const groupName = "CheckEarthquake_DMDATA_Legacy";
+        fs.mkdirSync(__dirname + `/../output/test/`, { recursive: true });
+
+        return (buffer: Buffer) => {
+            fs.writeFileSync(__dirname + `/../output/test/${groupName}_${name}_ImageBuffer.png`, buffer);
+            return { id: "imageId" }
+        }
+    }
+
     beforeAll(() => {
         config = Config.load("./config/test.json");
         Logger.level = "info";
@@ -21,7 +32,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("基本動作", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("基本動作"));
         checkEarthquake.SendData(data, false);
         expect(mockCallback).toHaveBeenCalledWith(
             "EEW",
@@ -34,7 +45,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("支援者向け", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("支援者向け"));
 
         // 震度を3に変更
         data.eventId = "TEST:Supporter";
@@ -56,7 +67,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("訓練報", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("訓練報"));
 
         // 訓練報に変更
         data.status = "訓練";
@@ -73,7 +84,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("試験報", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("試験報"));
 
         // 訓練報に変更
         data.status = "試験";
@@ -90,7 +101,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("警報なし", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("警報なし"));
 
         // 警報を解除
         data.body.isWarning = false;
@@ -110,7 +121,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("発報なし", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("発報なし"));
 
         // 震度を1に変更
         data.body.intensity.forecastMaxInt.to = "1"
@@ -123,7 +134,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("通知済み地震で最終報でしきい値以下", () => {
         const firstData = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("通知済み地震で最終報でしきい値以下"));
 
         // 最初の地震で震度を4に変更
         firstData.body.intensity.forecastMaxInt.to = "4"
@@ -142,7 +153,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
 
         // 2回目
         const secondData = structuredClone(sample);
-        
+
         // 2回目の地震で震度を1に変更
         secondData.body.isLastInfo = true;
         secondData.body.intensity.forecastMaxInt.to = "1"
@@ -160,7 +171,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
     test("支援者向けから全体へ繰り上げ", () => {
         const firstData = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("支援者向けから全体へ繰り上げ"));
 
         // 最初の地震で震度を3に変更
         firstData.body.intensity.forecastMaxInt.to = "3"
@@ -182,7 +193,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
 
         // 2回目
         const secondData = structuredClone(sample);
-        
+
         // 2回目の地震で震度を4に変更
         secondData.body.isLastInfo = true;
         secondData.body.intensity.forecastMaxInt.to = "4"
@@ -197,7 +208,7 @@ describe("CheckEarthquake_DMDATA_Legacy", () => {
         );
     });
 
-    
+
 
 });
 
@@ -205,6 +216,17 @@ describe("CheckEarthquake_DMDATA", () => {
 
     let config: ReturnType<typeof Config.load>;
     let sample: any;
+
+    const imageSend = (name: string) => {
+
+        const groupName = "CheckEarthquake_DMDATA";
+        fs.mkdirSync(__dirname + `/../output/test/`, { recursive: true });
+
+        return (buffer: Buffer) => {
+            fs.writeFileSync(__dirname + `/../output/test/${groupName}_${name}_ImageBuffer.png`, buffer);
+            return { id: "imageId" }
+        }
+    }
 
     beforeAll(() => {
         config = Config.load("./config/test.json");
@@ -218,7 +240,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("基本動作", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("基本動作"));
         checkEarthquake.SendData(data, false);
         expect(mockCallback).toHaveBeenCalledWith(
             "EEW",
@@ -234,7 +256,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("支援者向け", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("支援者向け"));
 
         // 震度を3に変更
         data.eventId = "TEST:Supporter";
@@ -257,7 +279,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("訓練報", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("訓練報"));
 
         // 訓練報に変更
         data.status = "訓練";
@@ -277,7 +299,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("試験報", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("試験報"));
 
         // 訓練報に変更
         data.status = "試験";
@@ -297,11 +319,11 @@ describe("CheckEarthquake_DMDATA", () => {
     test("警報なし", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("警報なし"));
 
         // 警報を解除
         data.body.isWarning = false;
-        
+
         // 対象地域を削除
         delete data.body.zones;
 
@@ -319,7 +341,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("発報なし", () => {
         const data = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("発報なし"));
 
         // 震度を1に変更
         data.body.intensity.forecastMaxInt.to = "1"
@@ -332,7 +354,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("通知済み地震で最終報でしきい値以下", () => {
         const firstData = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("通知済み地震で最終報でしきい値以下"));
 
         // 最初の地震で震度を4に変更
         firstData.body.intensity.forecastMaxInt.to = "4"
@@ -354,7 +376,7 @@ describe("CheckEarthquake_DMDATA", () => {
 
         // 2回目
         const secondData = structuredClone(sample);
-        
+
         // 2回目の地震で震度を1に変更
         secondData.body.isLastInfo = true;
         secondData.body.intensity.forecastMaxInt.to = "1"
@@ -375,7 +397,7 @@ describe("CheckEarthquake_DMDATA", () => {
     test("支援者向けから全体へ繰り上げ", () => {
         const firstData = structuredClone(sample);
         const mockCallback = jest.fn();
-        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback);
+        const checkEarthquake = new CheckEarthquake_DMDATA(mockCallback, imageSend("支援者向けから全体へ繰り上げ"));
 
         // 最初の地震で震度を3に変更
         firstData.body.intensity.forecastMaxInt.to = "3"
@@ -398,7 +420,7 @@ describe("CheckEarthquake_DMDATA", () => {
 
         // 2回目
         const secondData = structuredClone(sample);
-        
+
         // 2回目の地震で震度を4に変更
         secondData.body.isLastInfo = true;
         secondData.body.intensity.forecastMaxInt.to = "4"
@@ -416,7 +438,7 @@ describe("CheckEarthquake_DMDATA", () => {
         );
     });
 
-    
+
 
 });
 

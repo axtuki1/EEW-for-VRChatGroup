@@ -9,6 +9,7 @@ import path = require('path');
  * 震源地を地図に描画するクラス
  */
 export class GeoMap {
+
     private defaultOptions: Required<MapOptions> = {
         width: 1920,
         height: 1080,
@@ -34,6 +35,7 @@ export class GeoMap {
         infoBorderSize: 12,
         infoAreaWidth: 800,
         infoAreaHeight: 600,
+        groupName: '災害情報室',
         debug: false,
     };
 
@@ -114,10 +116,12 @@ export class GeoMap {
 
         // GeoJSONデータを事前読み込み
         this.loadGeoJSON();
-
-        this.logoImage = new Image();
+        
         const logoImagePath = path.join(__dirname, '../../../assets/logo.png');
-        this.logoImage.src = fs.readFileSync(logoImagePath);
+        if (fs.existsSync(logoImagePath)) {
+            this.logoImage = new Image();
+            this.logoImage.src = fs.readFileSync(logoImagePath);
+        }
     }
 
     /**
@@ -365,7 +369,7 @@ export class GeoMap {
         const date = new Date();
         const formattedDate = `${date.getFullYear()}/${('0' + (date.getMonth() + 1)).slice(-2)}/${('0' + date.getDate()).slice(-2)} ${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}:${('0' + date.getSeconds()).slice(-2)}`;
         textData.push({
-            label: `VRChatグループ「災害情報室」 /  ${formattedDate} 作成`,
+            label: `VRChatグループ「${opts.groupName}」 /  ${formattedDate} 作成`,
             x: 20,
             y: 20,
             color: '#ffffff6d',
@@ -377,7 +381,7 @@ export class GeoMap {
                 `地震発生直後は仕様上、画像と投稿本文とで表示内容に異なる場合があり、\n` +
                 `その場合は発表番号（第n報）が大きい方が最新の情報となります。\n` +
                 `本画像はdmdata.jpより受信した情報に基づき生成しています。\n` +
-                `VRChatグループ「災害情報室」では予報業務の許可を受けていないため、正確な情報は気象庁発表の情報をご確認ください。`,
+                `VRChatグループ「${opts.groupName}」では予報業務の許可を受けていないため、正確な情報は気象庁発表の情報をご確認ください。`,
             x: this.canvas.width - 5,
             y: this.canvas.height - 5,
             color: '#ffffffb8',
@@ -465,7 +469,7 @@ export class GeoMap {
         });
         // 推定震度 value
         textData.push({
-            label: `${info.magnitude.toFixed(1) || '不明'}`,
+            label: `${info.magnitude !== undefined ? info.magnitude.toFixed(1) : '不明'}`,
             x: opts.infoPosX + 630,
             y: opts.infoPosY + 100,
             color: '#EEEEEE',
@@ -549,25 +553,83 @@ export class GeoMap {
         });
 
         // ロゴ
-        ctx.save();
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(
-            this.logoImage,
-            0, 0, this.logoImage.width, this.logoImage.height,
-            this.canvas.width - (this.logoImage.width * 0.18) + 50,
-            0,
-            this.logoImage.width * 0.18,
-            this.logoImage.height * 0.18
-        );
-        ctx.fillStyle = 'rgb(219, 24, 32)';
-        ctx.fillRect(
-            0,
-            this.logoImage.height * 0.18 - 29.5,
-            this.canvas.width - (this.logoImage.width * 0.18) + 0.1 + 50,
-            5
-        );
-        ctx.restore();
+        if (this.logoImage) {
+            ctx.save();
+            ctx.globalAlpha = 0.5;
+            ctx.drawImage(
+                this.logoImage,
+                0, 0, this.logoImage.width, this.logoImage.height,
+                this.canvas.width - (this.logoImage.width * 0.18) + 50,
+                0,
+                this.logoImage.width * 0.18,
+                this.logoImage.height * 0.18
+            );
+            ctx.fillStyle = 'rgb(219, 24, 32)';
+            ctx.fillRect(
+                0,
+                this.logoImage.height * 0.18 - 29.5,
+                this.canvas.width - (this.logoImage.width * 0.18) + 0.1 + 50,
+                5
+            );
+            ctx.restore();
+        }
 
+        if (info.isAlert) {
+            // 警戒発表有無
+            ctx.save();
+            this.drawHeader(
+                ctx,
+                'rgb(234, 48, 48)',
+                opts.infoPosX,
+                opts.infoPosY + opts.infoAreaHeight + 30,
+                700,
+                70,
+                0, 0, 0, 50
+            );
+            textData.push({
+                label: `緊急地震速報（警報）発表中`,
+                x: opts.infoPosX + 50 + 4,
+                y: opts.infoPosY + opts.infoAreaHeight + 30 + 5 + 4,
+                color: '#1f1f1f',
+                size: opts.infoFontSize * 2.4,
+                align: 'left',
+                baseline: 'top',
+            });
+            textData.push({
+                label: `緊急地震速報（警報）発表中`,
+                x: opts.infoPosX + 50,
+                y: opts.infoPosY + opts.infoAreaHeight + 30 + 5,
+                color: '#EEEEEE',
+                size: opts.infoFontSize * 2.4,
+                align: 'left',
+                baseline: 'top',
+            });
+            ctx.restore();
+        }
+
+        if (info.isTraining) {
+            // 訓練用地震の透かし
+            ctx.save();
+            this.drawHeader(
+                ctx,
+                'rgba(111, 208, 46, 1)',
+                opts.infoPosX,
+                this.canvas.height - 75,
+                280,
+                50,
+                0, 0, 0, 50
+            );
+            textData.push({
+                label: `訓練/試験`,
+                x: opts.infoPosX + 50,
+                y: this.canvas.height - 75 + 4,
+                color: '#000000',
+                size: opts.infoFontSize * 1.75,
+                align: 'left',
+                baseline: 'top',
+            });
+            ctx.restore();
+        }
 
         // テキスト描画設定
         ctx.textAlign = opts.infoTextAlign;

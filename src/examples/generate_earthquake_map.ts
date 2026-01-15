@@ -30,13 +30,16 @@ async function main() {
         latitude: 37.5,
         longitude: 137.2,
         magnitude: 7.6,
-        intensity: "5強",
-        depth: 10,
+        intensity: "7",
+        depth: 16,
         location: '石川県能登地方',
         serial: 1,
         isLast: true,
-        originTime: '2007-03-25T10:13:00+09:00',
+        originTime: '2024-01-01T16:10:22+09:00',
+        isAlert: true,
+        isTraining: true,
     }, {
+        groupName: '地震情報 Beta',
         debug: false,
     });
 
@@ -46,15 +49,18 @@ async function main() {
     // 例2: 東北地方太平洋沖地震
     console.log('2. 東北地方太平洋沖地震の地図を生成中...');
     const tohokuMap = await geoMap.generateMap({
-        latitude: 38.322,
-        longitude: 142.369,
+        latitude: 38.103333,
+        longitude: 142.86,
         magnitude: 9.0,
         intensity: "7",
-        depth: 29,
+        depth: 24,
         location: '三陸沖',
         serial: 315,
         isLast: true,
+        originTime: '2011-03-11T14:46:18+09:00',
+        isTraining: true,
     }, {
+        groupName: '地震情報 Beta',
         debug: false,
     });
 

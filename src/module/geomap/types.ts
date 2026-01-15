@@ -10,6 +10,8 @@ export interface EarthquakeInfo {
     depth?: number | "ごく浅い";      // 深さ (km)
     location?: string;   // 震源地名
     originTime?: string | Date; // 発生日時 (ISO 8601形式)
+    isAlert?: boolean; // 警報・注意報が発表されているかどうか
+    isTraining?: boolean; // 訓練用地震かどうか
 }
 
 export interface FontOptions {
@@ -42,6 +44,7 @@ export interface MapOptions {
     infoBorderSize?: number; // 情報テキスト境界の太さ (デフォルト: 4)
     infoAreaWidth?: number; // 情報テキストエリアの幅 (デフォルト: 800)
     infoAreaHeight?: number; // 情報テキストエリアの高さ (デフォルト: 100)
+    groupName?: string; // 情報テキストに表示するグループ名 (デフォルト: 'GeoMap')
     debug?: boolean;    // デバッグモード (デフォルト: false)
 }
 

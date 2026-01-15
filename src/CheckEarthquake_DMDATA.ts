@@ -347,6 +347,20 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         // 記録されたデータに支援者情報がない場合は新規として扱う
 
+        const imageEarthquakeData = {
+            latitude: Number(xmlData.body.earthquake.hypocenter.coordinate.latitude.value),
+            longitude: Number(xmlData.body.earthquake.hypocenter.coordinate.longitude.value),
+            magnitude: Number(xmlData.body.earthquake.magnitude.value),
+            intensity: this.intensityNameMaster[newintensity],
+            depth: Number(xmlData.body.earthquake.hypocenter.depth.value),
+            location: xmlData.body.earthquake.hypocenter.name,
+            serial: xmlData.serialNo,
+            isLast: xmlData.body.isLastInfo,
+            originTime: xmlData.body.earthquake.originTime,
+            isAlert: xmlData.body.isWarning,
+            isTraining: isTraining
+        };
+
         if (this.knownData[xmlData.eventId].isSupporter === undefined) {
             this.logger.debug("新規データを受信: " + xmlData.eventId);
             // とりあえず書き込みはしておく
@@ -384,40 +398,20 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 this.logger.debug(loggerPrefix + "最終報の生成");
                 // 初回通知にもかかわらず最終報
                 const imageData = await new Promise<any>(async (resolve) => {
-                    const mapImage = await this.geoMap.generateMap({
-                        latitude: xmlData.body.earthquake.hypocenter.coordinate.latitude.value,
-                        longitude: xmlData.body.earthquake.hypocenter.coordinate.longitude.value,
-                        magnitude: xmlData.body.earthquake.magnitude.value,
-                        intensity: this.intensityNameMaster[newintensity],
-                        depth: xmlData.body.earthquake.hypocenter.depth.value,
-                        location: xmlData.body.earthquake.hypocenter.name,
-                        serial: xmlData.serialNo,
-                        isLast: xmlData.body.isLastInfo,
-                        originTime: xmlData.body.earthquake.originTime,
-                    });
-                    resolve(await this.imagePostFunc(xmlData.eventId, mapImage));
+                    const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
+                    resolve(await this.imagePostFunc(mapImage));
                 });
 
                 imageId = imageData.id;
                 this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
                 this.knownData[xmlData.eventId].vrcNextAttach = false;
                 this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
-            } else if(!this.knownData[xmlData.eventId].vrcUploadedImageId) {
+            } else if (!this.knownData[xmlData.eventId].vrcUploadedImageId) {
                 // 画像生成 生成した画像は次の配信で添付するのでPromiseに投げっぱなしでいい
                 this.logger.debug(loggerPrefix + "画像生成");
                 new Promise<any>(async (resolve) => {
-                    const mapImage = await this.geoMap.generateMap({
-                        latitude: xmlData.body.earthquake.hypocenter.latitude.value,
-                        longitude: xmlData.body.earthquake.hypocenter.longitude.value,
-                        magnitude: xmlData.body.earthquake.magnitude.value,
-                        intensity: this.intensityNameMaster[newintensity],
-                        depth: xmlData.body.earthquake.hypocenter.depth.value,
-                        location: xmlData.body.earthquake.hypocenter.name,
-                        serial: xmlData.serialNo,
-                        isLast: xmlData.body.isLastInfo,
-                        originTime: xmlData.body.earthquake.originTime,
-                    });
-                    resolve(await this.imagePostFunc(xmlData.eventId, mapImage));
+                    const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
+                    resolve(await this.imagePostFunc(mapImage));
                 }).then((imageData) => {
                     this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
                     this.knownData[xmlData.eventId].vrcNextAttach = true;
@@ -444,18 +438,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 this.logger.debug(loggerPrefix + "最終報のため画像再生成");
                 // 画像再生成
                 const imageData = await new Promise<any>(async (resolve) => {
-                    const mapImage = await this.geoMap.generateMap({
-                        latitude: xmlData.body.earthquake.hypocenter.latitude.value,
-                        longitude: xmlData.body.earthquake.hypocenter.longitude.value,
-                        magnitude: xmlData.body.earthquake.magnitude.value,
-                        intensity: this.intensityNameMaster[newintensity],
-                        depth: xmlData.body.earthquake.hypocenter.depth.value,
-                        location: xmlData.body.earthquake.hypocenter.name,
-                        serial: xmlData.serialNo,
-                        isLast: xmlData.body.isLastInfo,
-                        originTime: xmlData.body.earthquake.originTime,
-                    });
-                    resolve(await this.imagePostFunc(xmlData.eventId, mapImage));
+                    const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
+                    resolve(await this.imagePostFunc(mapImage));
                 });
 
                 imageId = imageData.id;
