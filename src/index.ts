@@ -317,7 +317,9 @@ const ImagePost = async (imagebuffer: Buffer) => {
 
     const formData = new FormData();
     
-    formData.append("file", new Blob([imagebuffer as Uint8Array<ArrayBuffer>], { type: 'image/png' }), "image.png");
+    formData.append("file", new Blob([new Uint8Array(imagebuffer)], {
+        type: "image/png"
+    }), "image.png");
     formData.append("tag", "gallery");
 
     return await fetch("https://api.vrchat.cloud/api/1/file/image", {
@@ -325,7 +327,6 @@ const ImagePost = async (imagebuffer: Buffer) => {
         headers: {
             "User-Agent": userAgent,
             Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
-            'Content-Type': 'multipart/form-data',
         },
         body: formData
     }).then((r) => {
