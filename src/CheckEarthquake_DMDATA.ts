@@ -55,6 +55,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     private currentTicket;
     private imagePostFunc: Function;
     private geoMap: GeoMap = new GeoMap();
+    private previousImageId: string = null;
 
     private tsunamiAlert_VTSE41: TsunamiAlert_VTSE41;
 
@@ -91,6 +92,9 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         }
         if (this.intensityTable[config.settings.noticeIntensityForSupporter] !== undefined) {
             this.noticeIntensityForSupporter = this.intensityTable[config.settings.noticeIntensityForSupporter];
+        }
+        if (fs.existsSync("secret/previousImageId.txt")) {
+            this.previousImageId = fs.readFileSync("secret/previousImageId.txt", "utf-8").trim();
         }
     }
 
@@ -399,10 +403,12 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 // 初回通知にもかかわらず最終報
                 const imageData = await new Promise<any>(async (resolve) => {
                     const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
-                    resolve(await this.imagePostFunc(mapImage));
+                    resolve(await this.imagePostFunc(mapImage, this.previousImageId));
                 });
-
+                
                 imageId = imageData.id;
+                this.previousImageId = imageData.id;
+                fs.writeFileSync("secret/previousImageId.txt", imageData.id);
                 this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
                 this.knownData[xmlData.eventId].vrcNextAttach = false;
                 this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
@@ -411,8 +417,10 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 this.logger.debug(loggerPrefix + "画像生成");
                 new Promise<any>(async (resolve) => {
                     const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
-                    resolve(await this.imagePostFunc(mapImage));
+                    resolve(await this.imagePostFunc(mapImage, this.previousImageId));
                 }).then((imageData) => {
+                    this.previousImageId = imageData.id;
+                    fs.writeFileSync("secret/previousImageId.txt", imageData.id);
                     this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
                     this.knownData[xmlData.eventId].vrcNextAttach = true;
                     this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
@@ -439,10 +447,12 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 // 画像再生成
                 const imageData = await new Promise<any>(async (resolve) => {
                     const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
-                    resolve(await this.imagePostFunc(mapImage));
+                    resolve(await this.imagePostFunc(mapImage, this.previousImageId));
                 });
 
                 imageId = imageData.id;
+                this.previousImageId = imageData.id;
+                fs.writeFileSync("secret/previousImageId.txt", imageId);
                 this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
                 this.knownData[xmlData.eventId].vrcNextAttach = false;
                 this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);

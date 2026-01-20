@@ -340,7 +340,7 @@ const ImagePost = async (imagebuffer: Buffer) => {
     });
 }
 
-const ImageReplace = async (imagebuffer: Buffer, oldImageId?: string) => {
+const ImageReplace = async (imagebuffer: Buffer, oldImageId: string | null = undefined) => {
     let logger = new Logger("API:ImageReplace");
     if (!isLogin) {
         logger.info("ReLogin");
@@ -351,15 +351,17 @@ const ImageReplace = async (imagebuffer: Buffer, oldImageId?: string) => {
         }
     }
     logger.info("Image Replacing....");
-    if (oldImageId) {
-        await ImageRemove(oldImageId);
-    } else {
+    if (oldImageId === null) {
+        // 特に何もしない
+    } else if (oldImageId === undefined) {
         const imageList = await ImageList();
         if (imageList && imageList.length > 0) {
-            imageList.forEach(async element => {
+            for (const element of imageList) {
                 await ImageRemove(element.id);
-            });
+            }
         }
+    } else {
+        await ImageRemove(oldImageId);
     }
     return await ImagePost(imagebuffer);
 }
