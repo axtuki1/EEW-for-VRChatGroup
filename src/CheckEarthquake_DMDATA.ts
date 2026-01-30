@@ -311,7 +311,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             if (!(
                 xmlData.body.isLastInfo ||
                 xmlData.body.isCanceled ||
-                this.intensityTable[newintensity] > this.intensityTable[oldintensity]
+                this.intensityTable[newintensity] > this.intensityTable[oldintensity] ||
+                this.knownData[xmlData.eventId].vrcNextAttach === true
             )) {
                 this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
                 return;
