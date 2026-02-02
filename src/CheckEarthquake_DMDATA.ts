@@ -350,7 +350,6 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         // ここまででxmlDataとthis.knownData[xmlData.eventId]はisSupporter除き同一のはず
 
-        // 記録されたデータに支援者情報がない場合は新規として扱う
 
         const imageEarthquakeData = {
             latitude: Number(xmlData.body.earthquake.hypocenter.coordinate.latitude.value),
@@ -366,10 +365,14 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             isTraining: isTraining
         };
 
-        if (this.knownData[xmlData.eventId].isSupporter === undefined) {
+        // 記録されたデータに通知済み最大震度がない場合は新規として扱う
+        // 通知ロール判定には通知済最大震度を利用する
+
+        if (this.knownData[xmlData.eventId].maxNotifiedIntensity === undefined) {
             this.logger.debug("新規データを受信: " + xmlData.eventId);
             // とりあえず書き込みはしておく
-            this.knownData[xmlData.eventId].isSupporter = false;
+            this.knownData[xmlData.eventId].isSupporter = false; // 後方互換用
+            this.knownData[xmlData.eventId].maxNotifiedIntensity = newintensity;
             // 新規なので、普通に震度判定を行う
             this.logger.debug(loggerPrefix + "震度判定: " + newintensity);
             this.logger.debug(loggerPrefix + "震度判定値: " + this.intensityTable[newintensity]);
@@ -379,7 +382,9 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 this.noticeIntensityForSupporter <= this.intensityTable[newintensity] && // 支援者向け通知しきい値以上の震度 かつ
                 this.intensityTable[newintensity] < this.noticeIntensity // 震度が通常通知しきい値未満
             ) {
-                roleIds = [...config.supporterRoleIds];
+                if (config.features.enableLegacyNotice) {
+                    roleIds = [...config.supporterRoleIds];
+                }
                 isSupporter = true;
             } else {
                 // 通常通知
@@ -406,7 +411,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                     const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
                     resolve(await this.imagePostFunc(mapImage, this.previousImageId));
                 });
-                
+
                 imageId = imageData.id;
                 this.previousImageId = imageData.id;
                 fs.writeFileSync("secret/previousImageId.txt", imageData.id);
@@ -432,13 +437,48 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             this.logger.debug(loggerPrefix + "既存データ: " + xmlData.eventId);
             // 前回が支援者向け通知の場合、今回全体通知に繰り上げるか判定する
             // ※最終報などで震度が下がった場合でも拾えるように全体通知しきい値を超えていないかで判定
-            if (this.knownData[xmlData.eventId].isSupporter) {
-                if (this.intensityTable[newintensity] < this.noticeIntensity) {
+            // if (this.knownData[xmlData.eventId].isSupporter) {
+            //     if (this.intensityTable[newintensity] < this.noticeIntensity) {
+            //         roleIds = [...config.supporterRoleIds];
+            //         isSupporter = true;
+            //     }
+            // } else {
+            //     // 前回が全体通知の場合、今回も全体通知とする
+            //     isSupporter = false;
+            // }
+
+            // 既存データの最大通知震度よりも大きい場合、最大通知震度を更新する
+            if (this.intensityTable[newintensity] > this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]) {
+                this.logger.debug(loggerPrefix + "最大通知震度更新: " + this.knownData[xmlData.eventId].maxNotifiedIntensity + " -> " + newintensity);
+                this.knownData[xmlData.eventId].maxNotifiedIntensity = newintensity;
+            }
+
+            // 通知ロール決定
+            // 通知済みの最大震度で判定する
+            this.logger.debug(loggerPrefix + "震度判定(通知済最大): " + this.knownData[xmlData.eventId].maxNotifiedIntensity);
+            this.logger.debug(loggerPrefix + "震度判定値(通知済最大): " + this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]);
+            this.logger.debug(loggerPrefix + "通常通知しきい値: " + this.noticeIntensity);
+            this.logger.debug(loggerPrefix + "支援者向け通知しきい値: " + this.noticeIntensityForSupporter);
+            if (
+                this.noticeIntensityForSupporter <= this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity] && // 支援者向け通知しきい値以上の震度 かつ
+                this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity] < this.noticeIntensity // 震度が通常通知しきい値未満
+            ) {
+                if (config.features.enableLegacyNotice) {
                     roleIds = [...config.supporterRoleIds];
-                    isSupporter = true;
                 }
+                isSupporter = true;
             } else {
-                // 前回が全体通知の場合、今回も全体通知とする
+                // 通常通知
+                roleIds = [];
+                if (!config.features.enableLegacyNotice) {
+                    // デフォルトロールが設定されていれば追加
+                    if (
+                        config.settings.defaultRoleId &&
+                        config.settings.defaultRoleId.length > 0
+                    ) {
+                        roleIds.push(config.settings.defaultRoleId);
+                    }
+                }
                 isSupporter = false;
             }
 
@@ -514,23 +554,53 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         // 警報の地域別ロール設定
         if (!config.features.enableLegacyNotice) {
-            if (xmlData.body.zones && xmlData.body.zones.length > 0) {
-                xmlData.body.zones.forEach(zone => {
-                    if (
-                        zone.kind.code === "31" &&
-                        roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) === -1
-                    ) {
-                        roleIds.push(config.settings.regionRoles[zone.code]?.roleId);
-                    } else if (
-                        roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) !== -1
-                    ) {
-                        roleIds.splice(roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId), 1);
-                    }
-                });
-            }
+            // if (xmlData.body.zones && xmlData.body.zones.length > 0) {
+            //     xmlData.body.zones.forEach(zone => {
+            //         if (
+            //             zone.kind.code === "31" &&
+            //             roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) === -1
+            //         ) {
+            //             roleIds.push(config.settings.regionRoles[zone.code]?.roleId);
+            //         } else if (
+            //             roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) !== -1
+            //         ) {
+            //             roleIds.splice(roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId), 1);
+            //         }
+            //     });
+            // }
         }
 
-        this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, imageId);
+        if (config.features.enableLegacyNotice) {
+            await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null);
+        } else {
+            // 画像付き(支援者)向けの配信要否判定
+            // 震度別ロールの配信設定
+            // intensityTableを参照して、通知済み最大震度がしきい値以上であるロールを追加
+            // config.settings.intensityRoleIdsを参照
+            for (const intensity of Object.keys(this.intensityTable)) {
+                if (this.intensityTable[intensity] <= this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]) {
+                    const roleId = config.settings.intensityRoleIds[intensity];
+                    if (roleId && !roleIdsForPhoto.includes(roleId)) {
+                        roleIdsForPhoto.push(roleId);
+                    }
+                }
+            }
+            // 警報のみロールの配信設定
+            if (data.alertflg === "警報") {
+                const warningOnlyRoleId = config.settings.warningOnlyRoleId;
+                if (warningOnlyRoleId && !roleIdsForPhoto.includes(warningOnlyRoleId)) {
+                    roleIdsForPhoto.push(warningOnlyRoleId);
+                }
+            }
+
+            this.logger.debug(loggerPrefix + "画像付き配信ロールID: " + roleIdsForPhoto);
+
+            if (roleIds && roleIds.length > 0) {
+                await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null);
+            }
+            await this.callback(config.settings.sendTitle, sendMsg, notice, roleIdsForPhoto, imageId);
+        }
+
     }
 
     // 旧データの削除処理

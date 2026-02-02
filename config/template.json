@@ -79,6 +79,18 @@
         // 対象機能: 
         // ・震度4以上の地震を通知
         "defaultRoleId": "",
+        // 震度別ロールID設定
+        "intensityRoleIds": {
+            "3": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "4": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "5-": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "5+": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "6-": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "6+": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "7": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        },
+        // 警報のみ通知ロールID
+        "warningOnlyRoleId": "grol_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
         // 緊急地震速報／地方予報区別ロール設定
         "regionRoles": {
             "9910": {

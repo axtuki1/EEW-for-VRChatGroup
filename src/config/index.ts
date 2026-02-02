@@ -48,6 +48,11 @@ export class Config {
         isTrainningNotice: boolean;
         UpdateReason: boolean;
         defaultRoleId: string;
+        intensityRoleIds: {
+            [intensity: string]: string;
+        },
+        warningOnlyRoleId: string;
+        
         regionRoles: {
             [regionCode: string]: {
                 roleId: string;
