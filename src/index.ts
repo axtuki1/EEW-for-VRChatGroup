@@ -231,18 +231,20 @@ const Notice = async (title, body, isNotice = false, roleIds = [], imageId = nul
     });
 }
 
-const UpdatePost = async (title, body, isNotice = false, roleIds = [], imageId = null) => {
-    const alllist = GetPostList();
-    const list = await alllist;
-    try {
-        if (config.debug) console.log(list);
-        if (list != null) list["posts"].filter((post) => post.title == title).forEach(async post => {
-            await PostRemove(post.id);
-        });
-    } catch (e) {
-        console.log(e);
-        console.log("GetPostList: ");
-        console.log(list);
+const UpdatePost = async (title, body, isNotice = false, roleIds = [], imageId = null, duplicateDelete = true) => {
+    if (duplicateDelete) {
+        const alllist = GetPostList();
+        const list = await alllist;
+        try {
+            if (config.debug) console.log(list);
+            if (list != null) list["posts"].filter((post) => post.title == title).forEach(async post => {
+                await PostRemove(post.id);
+            });
+        } catch (e) {
+            console.log(e);
+            console.log("GetPostList: ");
+            console.log(list);
+        }
     }
     Notice(title, body, isNotice, roleIds, imageId);
 }
@@ -316,7 +318,7 @@ const ImagePost = async (imagebuffer: Buffer) => {
     logger.info("Image Posting....");
 
     const formData = new FormData();
-    
+
     formData.append("file", new Blob([new Uint8Array(imagebuffer)], {
         type: "image/png"
     }), "image.png");

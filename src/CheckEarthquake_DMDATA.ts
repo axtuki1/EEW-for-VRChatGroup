@@ -595,10 +595,14 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
             this.logger.debug(loggerPrefix + "画像付き配信ロールID: " + roleIdsForPhoto);
 
-            if (roleIds && roleIds.length > 0) {
-                await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null);
+            let duplicateDelete = true;
+            if (roleIdsForPhoto && roleIdsForPhoto.length > 0) {
+                await this.callback(config.settings.sendTitle, sendMsg, notice, roleIdsForPhoto, imageId, duplicateDelete);
+                duplicateDelete = false;
             }
-            await this.callback(config.settings.sendTitle, sendMsg, notice, roleIdsForPhoto, imageId);
+            if (roleIds && roleIds.length > 0) {
+                await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null, duplicateDelete);
+            }
         }
 
     }
