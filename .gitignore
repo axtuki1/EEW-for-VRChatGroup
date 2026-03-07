@@ -41,6 +41,8 @@ build/
 
 # Cookieとかアカウント情報とか
 secret/
+output/
 
 config/*
 !config/template.json
+!config/test.json

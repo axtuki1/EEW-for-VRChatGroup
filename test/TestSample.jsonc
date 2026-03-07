@@ -1,0 +1,165 @@
+// API Reference掲載サンプル
+// https://dmdata.jp/docs/reference/conversion/json/schema/eew-information
+// 「VXSE43 - 2023/05/13 16:10 の例」より
+{
+    "_originalId": "3a1ef93aa9afb11c647483bbe4dc4acdd257074e2d95ba11532c2b48ae986b0b78cb053803086a10b40f885393cd3680",
+    "_schema": {
+        "type": "eew-information",
+        "version": "1.0.0"
+    },
+    "type": "緊急地震速報（警報）",
+    "title": "緊急地震速報（警報）",
+    "status": "通常",
+    "infoType": "発表",
+    "editorialOffice": "大阪管区気象台",
+    "publishingOffice": [
+        "気象庁"
+    ],
+    "pressDateTime": "2023-05-13T07:10:48Z",
+    "reportDateTime": "2023-05-13T16:10:48+09:00",
+    "targetDateTime": "2023-05-13T16:10:48+09:00",
+    "eventId": "20230513161031",
+    "serialNo": "1",
+    "infoKind": "緊急地震速報",
+    "infoKindVersion": "1.2_0",
+    "headline": "薩南諸島近海で地震　九州で強い揺れ",
+    "body": {
+        "isLastInfo": false,
+        "isCanceled": false,
+        "isWarning": true,
+        "zones": [
+            {
+                "code": "9951",
+                "name": "九州",
+                "kind": {
+                    "code": "31",
+                    "name": "緊急地震速報（警報）",
+                    "lastKind": {
+                        "code": "00",
+                        "name": "なし"
+                    }
+                }
+            }
+        ],
+        "prefectures": [
+            {
+                "code": "9461",
+                "name": "鹿児島",
+                "kind": {
+                    "code": "31",
+                    "name": "緊急地震速報（警報）",
+                    "lastKind": {
+                        "code": "00",
+                        "name": "なし"
+                    }
+                }
+            }
+        ],
+        "regions": [
+            {
+                "code": "774",
+                "name": "鹿児島県十島村",
+                "kind": {
+                    "code": "31",
+                    "name": "緊急地震速報（警報）",
+                    "lastKind": {
+                        "code": "00",
+                        "name": "なし"
+                    }
+                }
+            }
+        ],
+        "earthquake": {
+            "originTime": "2023-05-13T16:10:27+09:00",
+            "arrivalTime": "2023-05-13T16:10:31+09:00",
+            "hypocenter": {
+                "code": "798",
+                "name": "トカラ列島近海",
+                "coordinate": {
+                    "latitude": {
+                        "text": "29.9˚N",
+                        "value": "29.9000"
+                    },
+                    "longitude": {
+                        "text": "130.0˚E",
+                        "value": "130.0000"
+                    },
+                    "height": {
+                        "type": "高さ",
+                        "unit": "m",
+                        "value": "-10000"
+                    },
+                    "geodeticSystem": "日本測地系"
+                },
+                "depth": {
+                    "type": "深さ",
+                    "unit": "km",
+                    "value": "10"
+                },
+                "reduce": {
+                    "code": "9831",
+                    "name": "薩南諸島近海"
+                },
+                "landOrSea": "海域",
+                "accuracy": {
+                    "epicenters": [
+                        "3",
+                        "3"
+                    ],
+                    "depth": "3",
+                    "magnitudeCalculation": "4",
+                    "numberOfMagnitudeCalculation": "3"
+                }
+            },
+            "magnitude": {
+                "type": "マグニチュード",
+                "value": "5.6",
+                "unit": "Mj"
+            }
+        },
+        "intensity": {
+            "forecastMaxInt": {
+                "from": "5-",
+                "to": "5-"
+            },
+            "forecastMaxLgInt": {
+                "from": "0",
+                "to": "0"
+            },
+            "appendix": {
+                "maxIntChange": "0",
+                "maxLgIntChange": "0",
+                "maxIntChangeReason": "0"
+            },
+            "regions": [
+                {
+                    "code": "774",
+                    "name": "鹿児島県十島村",
+                    "forecastMaxInt": {
+                        "from": "4",
+                        "to": "5-"
+                    },
+                    "forecastMaxLgInt": {
+                        "from": "0",
+                        "to": "0"
+                    },
+                    "isPlum": false,
+                    "isWarning": true,
+                    "kind": {
+                        "name": "緊急地震速報（警報）",
+                        "code": "11"
+                    },
+                    "condition": "既に主要動到達と推測"
+                }
+            ]
+        },
+        "comments": {
+            "warning": {
+                "text": "強い揺れに警戒してください。",
+                "codes": [
+                    "0201"
+                ]
+            }
+        }
+    }
+}

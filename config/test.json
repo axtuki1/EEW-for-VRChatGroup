@@ -1,0 +1,114 @@
+// テスト用設定ファイル
+{
+    "apiKey": "<KEY>",
+    "authentication": {
+        "email": "<EMAIL>",
+        "password": "<PASSWORD>",
+        "OTP": {
+            "URI": "<URI>"
+        }
+    },
+    "groupId": "<groupId>",
+    "supporterRoleIds": [
+        "<supporterRoleId1>",
+        "<supporterRoleId2>"
+    ],
+    "DataSource": "DMDATA",
+    "P2P": {
+        "NextReconnectDelay": 5,
+        "DataURL": "wss://api.p2pquake.net/v2/ws",
+        "EEWDetectData": {
+            "Ttile": "EEW検出",
+            "Body": "緊急地震速報の発表を検出しました。",
+            "Popup": true
+        }
+    },
+    "Kmoni": {
+        "Timeout": 1.5,
+        "DataURL": "http://www.kmoni.bosai.go.jp/webservice/hypo/eew/${timestamp}.json",
+    },
+    "DMDATA": {
+        "NextReconnectDelay": 2,
+        "MaxTryConnectCount": 5,
+        "APIKey": "<KEY>",
+        "sendMsg": "[TESTCODE]${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生",
+        "cancelMsg": "[TESTCODE:CANCEL]${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生"
+    },
+    "TestDataPort": 36580,
+    "settings": {
+        "noticeIntensity": "4",
+        "noticeIntensityForSupporter": "3",
+        "isTrainningNotice": true,
+        "sendTitle": "EEW",
+        "sendMsg": "${isTraining}/${alertFlg}/${report_num}/${region_name}/震度${intensity}/M${magunitude}/深さ${depth}/${origin_time}発生",
+        "UpdateReason": true,
+        "defaultRoleId": "<testDefaultRoleId>",
+        "regionRoles": {
+            "9910": {
+                "roleId": "grol_9910",
+                "name": "北海道"
+            },
+            "9920": {
+                "roleId": "grol_9920",
+                "name": "東北"
+            },
+            "9931": {
+                "roleId": "grol_9931",
+                "name": "関東"
+            },
+            "9932": {
+                "roleId": "grol_9932",
+                "name": "伊豆諸島"
+            },
+            "9933": {
+                "roleId": "grol_9933",
+                "name": "小笠原"
+            },
+            "9934": {
+                "roleId": "grol_9934",
+                "name": "北陸"
+            },
+            "9935": {
+                "roleId": "grol_9935",
+                "name": "甲信"
+            },
+            "9936": {
+                "roleId": "grol_9936",
+                "name": "東海"
+            },
+            "9941": {
+                "roleId": "grol_9941",
+                "name": "近畿"
+            },
+            "9942": {
+                "roleId": "grol_9942",
+                "name": "中国"
+            },
+            "9943": {
+                "roleId": "grol_9943",
+                "name": "四国"
+            },
+            "9951": {
+                "roleId": "grol_9951",
+                "name": "九州"
+            },
+            "9952": {
+                "roleId": "grol_9952",
+                "name": "奄美(群島)"
+            },
+            "9960": {
+                "roleId": "grol_9960",
+                "name": "沖縄"
+            }
+        }
+    },
+    "features": {
+        "enableLegacyNotice": true,
+        "enableTsunamiAlert_VTSE41": false
+    },
+    "gatherData": false,
+    "OTPValue": "",
+    "contact": "contact@axtuki1.com",
+    "logLevel": "debug",
+    "debug": true
+}

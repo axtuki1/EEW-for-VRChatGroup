@@ -1,11 +1,7 @@
 import * as fs from "fs";
 import { clearInterval } from "timers";
 import { CheckEarthquake } from "./CheckEarthquake";
-const { parse } = require("jsonc-parser");
-const config = (() => {
-    const json = fs.readFileSync("./config/config.json");
-    return parse(json.toString());
-})();
+import { Config } from "./config";
 
 export class CheckEarthquake_Kmoni extends CheckEarthquake {
 
@@ -38,6 +34,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake {
         }
     }
     public Start() {
+        const config = Config.get();
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
         }
@@ -67,6 +64,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake {
         clearInterval(this.intervalTimer);
     }
     public DataProcess(data) {
+        const config = Config.get();
         this.lastResponse = data;
         let update = false, reason = "";
         // 支援者向け？
@@ -108,7 +106,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake {
                 isSupporter = true;
             } else {
                 // 通常通知
-                roleIds = config.roleIds;
+                roleIds = [];
                 isSupporter = false;
             }
         } else {
@@ -143,6 +141,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake {
     }
 
     public SendData(data, roleIds = []) {
+        const config = Config.get();
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         let sendMsg = config.settings.sendMsg;
         sendMsg = sendMsg.replaceAll("${isTraining}", data.is_training ? "--訓練-- " : "");
@@ -161,6 +160,7 @@ export class CheckEarthquake_Kmoni extends CheckEarthquake {
         this.callback(config.settings.sendTitle, sendMsg, true, roleIds);
     }
     public WebAPI(router) {
+        const config = Config.get();
         router.get("/api/v1/lastResponse", (req, res) => {
             res.json({
                 requestURL: this.lastRequestURL,

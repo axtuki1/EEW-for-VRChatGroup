@@ -4,14 +4,13 @@ import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
 import rndstr from "rndstr";
 import { DMDATA } from "./dmdata/DMDATA";
+import { Config } from "./config";
+import { TsunamiAlert_VTSE41 } from "./module/dmdata/TsunamiAlert_VTSE41";
+import { GeoMap } from "./module/geomap";
 const WebSocket = require("ws");
 const zlib = require("zlib");
 const expressWs = require('express-ws');
 const { parse } = require("jsonc-parser");
-const config = (() => {
-    const json = fs.readFileSync("./config/config.json");
-    return parse(json.toString());
-})();
 
 export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
@@ -37,6 +36,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         // "over": 12, // overはfromの値を見るので...
     };
     public noticeIntensity = 6;
+    public noticeIntensityForSupporter = 5;
     public intensityNameMaster = {
         "不明": "不明",
         "0": "0",
@@ -53,6 +53,11 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     }
     private retryCount = 0;
     private currentTicket;
+    private imagePostFunc: Function;
+    private geoMap: GeoMap = new GeoMap();
+    private previousImageId: string = null;
+
+    private tsunamiAlert_VTSE41: TsunamiAlert_VTSE41;
 
     private func = {
         "VXSE45": (data, xmlData) => {
@@ -62,18 +67,40 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 this.logger.error("受信時処理でエラーが発生しました:");
                 console.log(e);
             }
+        },
+        "VTSE41": (data, xmlData) => {
+            // 津波警報・注意報・予報
+            try {
+                if (this.tsunamiAlert_VTSE41 != null) {
+                    this.tsunamiAlert_VTSE41.ReceiveData(data, xmlData);
+                }
+            } catch (e) {
+                this.logger.error("受信時処理でエラーが発生しました:");
+                console.log(e);
+            }
         }
     }
 
-    public constructor(callback: Function) {
+    // 元々の設計が悪い
+    public constructor(callback: Function, imagePostFunc: Function) {
         super(callback);
         this.logger = new Logger("DMDATA");
-    }
-
-    public Start() {
+        this.imagePostFunc = imagePostFunc;
+        const config = Config.get();
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
         }
+        if (this.intensityTable[config.settings.noticeIntensityForSupporter] !== undefined) {
+            this.noticeIntensityForSupporter = this.intensityTable[config.settings.noticeIntensityForSupporter];
+        }
+        if (fs.existsSync("secret/previousImageId.txt")) {
+            this.previousImageId = fs.readFileSync("secret/previousImageId.txt", "utf-8").trim();
+        }
+    }
+
+    public Start() {
+        const config = Config.get();
+
         // 接続処理....
 
         this.dmdata = new DMDATA(config.DMDATA.APIKey);
@@ -105,6 +132,9 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
         this.connect();
 
+        if (config.features.enableTsunamiAlert_VTSE41) {
+            this.tsunamiAlert_VTSE41 = new TsunamiAlert_VTSE41(this.callback);
+        }
     }
     public Stop() {
         // 停止時処理...
@@ -119,29 +149,54 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             this.dmdata.closeConnect(this.currentTicket);
         }
 
+        const config = Config.get();
+
         this.logger.info("Creating ticket...");
         const ticket = await this.dmdata.createTicket(
             "EEWForVRChatGroup",
             [
                 DMDATA.Ticket.Classification.EEW.Forecast,
-                DMDATA.Ticket.Classification.Telegram.Earthquake
-            ],
+                config.features.enableTsunamiAlert_VTSE41 ? DMDATA.Ticket.Classification.Telegram.Earthquake : null
+            ].filter(item => item !== null),
             [
                 "VXSE44", // 緊急地震速報（予報）
                 "VXSE45", // 緊急地震速報（地震動予報）
                 // "VXSE51", // 震度速報
-                // "VTSE41", // 津波警報・注意報・予報
+                config.features.enableTsunamiAlert_VTSE41 ? "VTSE41" : null, // 津波警報・注意報・予報
                 // "VXSE52", // 震源に関する情報
                 // "VXSE53"  // 震源・震度に関する情報
-            ],
+            ].filter(item => item !== null),
             "json",
-            true
+            false // テスト報の受けとり
         );
 
         if (ticket.error) {
+            // チケット作成に失敗したときは指定秒数待って再接続
             this.logger.error("Failed to create ticket:");
             this.logger.error(ticket.error);
-            this.Stop();
+            if (this.retryCount < Config.get().DMDATA.MaxTryConnectCount) {
+                setTimeout(() => {
+                    this.connect();
+                }, Config.get().DMDATA.NextReconnectDelay * 1000);
+                this.retryCount++;
+            } else {
+                this.logger.error("Reached max retry count. Stop reconnecting.");
+                this.Stop();
+            }
+            return;
+        }
+        if (ticket.responseId === null || ticket.responseId === undefined) {
+            // そんなことはないので、再トライ
+            this.logger.error("Failed to create ticket: No response ID");
+            if (this.retryCount < Config.get().DMDATA.MaxTryConnectCount) {
+                setTimeout(() => {
+                    this.connect();
+                }, Config.get().DMDATA.NextReconnectDelay * 1000);
+                this.retryCount++;
+            } else {
+                this.logger.error("Reached max retry count. Stop reconnecting.");
+                this.Stop();
+            }
             return;
         }
         this.logger.info("Ticket created: " + ticket.responseId);
@@ -156,7 +211,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             const func = this.func[data.head.type];
             if (func != null) func(data, data.body);
         }
-        if (config.gatherData) {
+        if (Config.get().gatherData) {
             let nowTime = new Date().toLocaleDateString("ja-JP", {
                 year: "numeric", month: "2-digit",
                 day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"
@@ -186,7 +241,18 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     */
     private lastData = {};
     private knownData = {};
-    public SendData(xmlData, notice: boolean = true) {
+    public async SendData(xmlData, notice: boolean = true) {
+
+        const config = Config.get();
+
+        // 支援者向けであるか
+        let isSupporter = false;
+        // 配信する役職ID
+        let roleIds = [];
+        // 配信する役職ID(画像付き用)
+        let roleIdsForPhoto = [];
+        // 添付する画像
+        let imageId = null;
 
         // === 配信条件の判定 ===
 
@@ -197,29 +263,79 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             return;
         }
 
+        const loggerPrefix = "[" + xmlData.eventId + "] ";
+
+        this.logger.debug(loggerPrefix + "電文受信");
+
+        const isTraining = xmlData.status != "通常";
+        // 試験/訓練データ
+        if (
+            isTraining && !config.settings.isTrainningNotice
+        ) {
+            this.logger.info(loggerPrefix + "試験/訓練データのため無視");
+            return;
+        }
+
+        // 新データ震度 undefinedの場合は下記条件でrejectされるはずなので早期に求めてもよい...はず
+        let newintensity = xmlData.body?.intensity?.forecastMaxInt?.to;
+        let isOver = false;
+        this.logger.debug(loggerPrefix + "新データ震度(以上): " + newintensity);
+        if (newintensity == "over") { // ～以上の場合はfromをとる
+            newintensity = xmlData.body?.intensity?.forecastMaxInt?.from;
+            isOver = true;
+            this.logger.debug(loggerPrefix + "overのためfromから取得");
+            this.logger.debug(loggerPrefix + "新データ震度(以下): " + newintensity);
+        }
+
         if (xmlData.eventId in this.knownData) {
+            this.logger.debug(loggerPrefix + "配信済みのイベント? : yes");
+
             // 配信済みのデータで、以下の条件に当てはまらない場合は無視 (配信する理由が条件に入る)
+            // 画像添付が必要である
             // 最終報である
             // キャンセル情報である
             // 既存のデータよりも強い震度情報である
-            if(!(
+
+            // 既存データ震度
+            let oldintensity = this.knownData[xmlData.eventId].body?.intensity?.forecastMaxInt?.to;
+            this.logger.debug(loggerPrefix + "旧データ震度(以上): " + oldintensity);
+            if (oldintensity == "over") { // ～以上の場合はfromをとる
+                oldintensity = this.knownData[xmlData.eventId].body?.intensity?.forecastMaxInt?.from;
+                this.logger.debug(loggerPrefix + "overなのでfromから取得");
+                this.logger.debug(loggerPrefix + "旧データ震度(以下): " + oldintensity);
+            }
+
+            this.logger.debug(loggerPrefix + "配信条件確認");
+            this.logger.debug(loggerPrefix + "画像添付要: " + this.knownData[xmlData.eventId].vrcNextAttach);
+            this.logger.debug(loggerPrefix + "最終報(isLastInfo): " + xmlData.body.isLastInfo);
+            this.logger.debug(loggerPrefix + "キャンセル報(isCanceled): " + xmlData.body.isCanceled);
+            this.logger.debug(loggerPrefix + "震度比較: " + this.intensityTable[newintensity] + " > " + this.intensityTable[oldintensity]);
+            if (!(
                 xmlData.body.isLastInfo ||
                 xmlData.body.isCanceled ||
-                this.intensityTable[this.knownData[xmlData.eventId].body.intensity.forecastMaxInt.to] < this.intensityTable[xmlData.body.intensity.forecastMaxInt.to]
+                this.intensityTable[newintensity] > this.intensityTable[oldintensity] ||
+                this.knownData[xmlData.eventId].vrcNextAttach === true
             )) {
+                this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
                 return;
             }
         } else {
+            this.logger.debug(loggerPrefix + "配信済みのイベント? : no");
+            this.logger.debug(loggerPrefix + "配信条件確認");
+            this.logger.debug(loggerPrefix + "全体通知しきい値: " + this.intensityTable[newintensity] + " < " + this.noticeIntensity);
+            this.logger.debug(loggerPrefix + "支援者通知しきい値: " + this.intensityTable[newintensity] + " < " + this.noticeIntensityForSupporter);
             // 未配信データの場合
             if (!xmlData.body.isCanceled &&
                 (
                     xmlData.body.intensity == null ||
-                    this.intensityTable[xmlData.body.intensity.forecastMaxInt.to] < this.noticeIntensity
+                    this.intensityTable[newintensity] < this.noticeIntensity &&
+                    this.intensityTable[newintensity] < this.noticeIntensityForSupporter
                 )) {
+                this.logger.debug(loggerPrefix + "どの条件にもヒットしない");
                 return;
             }
         }
-        
+
         // === 配信済みリストに登録 ===
 
         // キャンセル報の場合、既存のデータを取得してキャンセル情報を付与
@@ -228,28 +344,199 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             xmlData.body.isCanceled = true;
         } else {
             // 通知対象の震度である場合、新しいデータを保存
+            if (this.knownData[xmlData.eventId] !== undefined) {
+                // 既存データの追加情報を引き継ぐ
+                xmlData.isSupporter = this.knownData[xmlData.eventId].isSupporter;
+                xmlData.maxNotifiedIntensity = this.knownData[xmlData.eventId].maxNotifiedIntensity;
+                xmlData.vrcUploadedImageId = this.knownData[xmlData.eventId].vrcUploadedImageId;
+                xmlData.vrcNextAttach = this.knownData[xmlData.eventId].vrcNextAttach;
+                xmlData.vrcUploading = this.knownData[xmlData.eventId].vrcUploading;
+            }
             this.knownData[xmlData.eventId] = xmlData;
         }
         this.scheduleRemoveOldKnownData(xmlData.eventId);
 
-        // === 配信データ作成 ===
+        // === 配信対象決定 ===
 
-        // 震度情報
-        let calcintensity = this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.to];
+        // ここまででxmlDataとthis.knownData[xmlData.eventId]はisSupporter除き同一のはず
 
-        if (calcintensity == "over") {
-            // 震度が"over"の場合、fromの値を見る
-            calcintensity = this.intensityNameMaster[xmlData.body.intensity.forecastMaxInt.from] + "以上";
+
+        const imageEarthquakeData = {
+            latitude: Number(xmlData.body.earthquake.hypocenter.coordinate.latitude.value),
+            longitude: Number(xmlData.body.earthquake.hypocenter.coordinate.longitude.value),
+            magnitude: Number(xmlData.body.earthquake.magnitude.value),
+            intensity: this.intensityNameMaster[newintensity],
+            depth: Number(xmlData.body.earthquake.hypocenter.depth.value),
+            location: xmlData.body.earthquake.hypocenter.name,
+            serial: xmlData.serialNo,
+            isLast: xmlData.body.isLastInfo,
+            originTime: xmlData.body.earthquake.originTime,
+            isAlert: xmlData.body.isWarning,
+            isTraining: isTraining
+        };
+
+        // 記録されたデータに通知済み最大震度がない場合は新規として扱う
+        // 通知ロール判定には通知済最大震度を利用する
+
+        if (this.knownData[xmlData.eventId].maxNotifiedIntensity === undefined) {
+            this.logger.debug("新規データを受信: " + xmlData.eventId);
+            // とりあえず書き込みはしておく
+            this.knownData[xmlData.eventId].isSupporter = false; // 後方互換用
+            this.knownData[xmlData.eventId].maxNotifiedIntensity = newintensity;
+            // 新規なので、普通に震度判定を行う
+            this.logger.debug(loggerPrefix + "震度判定: " + newintensity);
+            this.logger.debug(loggerPrefix + "震度判定値: " + this.intensityTable[newintensity]);
+            this.logger.debug(loggerPrefix + "通常通知しきい値: " + this.noticeIntensity);
+            this.logger.debug(loggerPrefix + "支援者向け通知しきい値: " + this.noticeIntensityForSupporter);
+            if (
+                this.noticeIntensityForSupporter <= this.intensityTable[newintensity] && // 支援者向け通知しきい値以上の震度 かつ
+                this.intensityTable[newintensity] < this.noticeIntensity // 震度が通常通知しきい値未満
+            ) {
+                if (config.features.enableLegacyNotice) {
+                    roleIds = [...config.supporterRoleIds];
+                }
+                isSupporter = true;
+            } else {
+                // 通常通知
+                roleIds = [];
+                if (!config.features.enableLegacyNotice) {
+                    // デフォルトロールが設定されていれば追加
+                    if (
+                        config.settings.defaultRoleId &&
+                        config.settings.defaultRoleId.length > 0
+                    ) {
+                        roleIds.push(config.settings.defaultRoleId);
+                    }
+                }
+                isSupporter = false;
+            }
+            this.logger.debug(loggerPrefix + "支援者向け: " + isSupporter);
+            this.logger.debug(loggerPrefix + "配信ロールID: " + roleIds);
+
+            // 初回の画像生成
+            if (xmlData.body.isLastInfo) {
+                this.logger.debug(loggerPrefix + "最終報の生成");
+                this.knownData[xmlData.eventId].vrcUploading = true;
+
+                // 初回通知にもかかわらず最終報
+                const imageData = await new Promise<any>(async (resolve) => {
+                    const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
+                    resolve(await this.imagePostFunc(mapImage, this.previousImageId));
+                });
+
+                imageId = imageData.id;
+                this.previousImageId = imageData.id;
+                fs.writeFileSync("secret/previousImageId.txt", imageData.id);
+                this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
+                this.knownData[xmlData.eventId].vrcNextAttach = false;
+                this.knownData[xmlData.eventId].vrcUploading = false;
+                this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
+            } else if (
+                !this.knownData[xmlData.eventId].vrcUploadedImageId &&
+                !this.knownData[xmlData.eventId].vrcUploading
+            ) {
+                // 画像生成 生成した画像は次の配信で添付するのでPromiseに投げっぱなしでいい
+                this.logger.debug(loggerPrefix + "画像生成");
+                this.knownData[xmlData.eventId].vrcUploading = true;
+                new Promise<any>(async (resolve) => {
+                    const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
+                    resolve(await this.imagePostFunc(mapImage, this.previousImageId));
+                }).then((imageData) => {
+                    this.previousImageId = imageData.id;
+                    fs.writeFileSync("secret/previousImageId.txt", imageData.id);
+                    this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
+                    this.knownData[xmlData.eventId].vrcNextAttach = true;
+                    this.knownData[xmlData.eventId].vrcUploading = false;
+                    this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
+                });
+            }
+
+        } else {
+            this.logger.debug(loggerPrefix + "既存データ: " + xmlData.eventId);
+            // 前回が支援者向け通知の場合、今回全体通知に繰り上げるか判定する
+            // ※最終報などで震度が下がった場合でも拾えるように全体通知しきい値を超えていないかで判定
+            // if (this.knownData[xmlData.eventId].isSupporter) {
+            //     if (this.intensityTable[newintensity] < this.noticeIntensity) {
+            //         roleIds = [...config.supporterRoleIds];
+            //         isSupporter = true;
+            //     }
+            // } else {
+            //     // 前回が全体通知の場合、今回も全体通知とする
+            //     isSupporter = false;
+            // }
+
+            // 既存データの最大通知震度よりも大きい場合、最大通知震度を更新する
+            if (this.intensityTable[newintensity] > this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]) {
+                this.logger.debug(loggerPrefix + "最大通知震度更新: " + this.knownData[xmlData.eventId].maxNotifiedIntensity + " -> " + newintensity);
+                this.knownData[xmlData.eventId].maxNotifiedIntensity = newintensity;
+            }
+
+            // 通知ロール決定
+            // 通知済みの最大震度で判定する
+            this.logger.debug(loggerPrefix + "震度判定(通知済最大): " + this.knownData[xmlData.eventId].maxNotifiedIntensity);
+            this.logger.debug(loggerPrefix + "震度判定値(通知済最大): " + this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]);
+            this.logger.debug(loggerPrefix + "通常通知しきい値: " + this.noticeIntensity);
+            this.logger.debug(loggerPrefix + "支援者向け通知しきい値: " + this.noticeIntensityForSupporter);
+            if (
+                this.noticeIntensityForSupporter <= this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity] && // 支援者向け通知しきい値以上の震度 かつ
+                this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity] < this.noticeIntensity // 震度が通常通知しきい値未満
+            ) {
+                if (config.features.enableLegacyNotice) {
+                    roleIds = [...config.supporterRoleIds];
+                }
+                isSupporter = true;
+            } else {
+                // 通常通知
+                roleIds = [];
+                if (!config.features.enableLegacyNotice) {
+                    // デフォルトロールが設定されていれば追加
+                    if (
+                        config.settings.defaultRoleId &&
+                        config.settings.defaultRoleId.length > 0
+                    ) {
+                        roleIds.push(config.settings.defaultRoleId);
+                    }
+                }
+                isSupporter = false;
+            }
+
+            // 最終報であるか
+            if (xmlData.body.isLastInfo) {
+                this.logger.debug(loggerPrefix + "最終報のため画像再生成");
+                this.knownData[xmlData.eventId].vrcUploading = true;
+                // 画像再生成
+                const imageData = await new Promise<any>(async (resolve) => {
+                    const mapImage = await this.geoMap.generateMap(imageEarthquakeData);
+                    resolve(await this.imagePostFunc(mapImage, this.previousImageId));
+                });
+
+                imageId = imageData.id;
+                this.previousImageId = imageData.id;
+                fs.writeFileSync("secret/previousImageId.txt", imageId);
+                this.knownData[xmlData.eventId].vrcUploadedImageId = imageData.id;
+                this.knownData[xmlData.eventId].vrcNextAttach = false;
+                this.knownData[xmlData.eventId].vrcUploading = false;
+                this.logger.debug(loggerPrefix + "画像アップロード完了: " + imageData.id);
+            } else {
+                if (this.knownData[xmlData.eventId].vrcNextAttach) {
+                    this.logger.debug(loggerPrefix + "画像再添付あり");
+                    // 画像再添付あり
+                    this.knownData[xmlData.eventId].vrcNextAttach = false;
+                    imageId = this.knownData[xmlData.eventId].vrcUploadedImageId;
+                }
+            }
         }
 
+        // === 配信データ作成 ===
+
         let data: any = {
-            is_training: xmlData.body.isTraining,
+            is_training: isTraining,
             is_final: xmlData.body.isLastInfo,
             is_cancel: xmlData.body.isCanceled,
             alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"
             report_num: xmlData.serialNo,
             region_name: xmlData.body.earthquake.hypocenter.name,
-            calcintensity: calcintensity,
+            calcintensity: this.intensityNameMaster[newintensity] + (isOver ? "以上" : ""),
             magunitude: xmlData.body.earthquake.magnitude.value ? xmlData.body.earthquake.magnitude.value : "不明",
             depth: xmlData.body.earthquake.hypocenter.depth.value + xmlData.body.earthquake.hypocenter.depth.unit,
             origin_time: xmlData.body.earthquake.originTime
@@ -262,7 +549,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         const origin_time_min = origin_time_obj.getMinutes().toString().padStart(2, "0");
         const origin_time_sec = origin_time_obj.getSeconds().toString().padStart(2, "0");
         const origin_time = `${origin_time_year}年${origin_time_month}月${origin_time_day}日 ${origin_time_hour}:${origin_time_min}:${origin_time_sec}`;
-        let sendMsg = config.DMDATA.sendMsg;
+        let sendMsg: string = config.DMDATA.sendMsg;
         if (data.is_cancel) {
             sendMsg = config.DMDATA.cancelMsg;
             data = this.lastData;
@@ -283,7 +570,61 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
         sendMsg = sendMsg.replaceAll("${depth}", data.depth);
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
-        this.callback(config.settings.sendTitle, sendMsg, notice);
+
+
+        // 警報の地域別ロール設定
+        if (!config.features.enableLegacyNotice) {
+            // if (xmlData.body.zones && xmlData.body.zones.length > 0) {
+            //     xmlData.body.zones.forEach(zone => {
+            //         if (
+            //             zone.kind.code === "31" &&
+            //             roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) === -1
+            //         ) {
+            //             roleIds.push(config.settings.regionRoles[zone.code]?.roleId);
+            //         } else if (
+            //             roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId) !== -1
+            //         ) {
+            //             roleIds.splice(roleIds.indexOf(config.settings.regionRoles[zone.code]?.roleId), 1);
+            //         }
+            //     });
+            // }
+        }
+
+        if (config.features.enableLegacyNotice) {
+            await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null);
+        } else {
+            // 画像付き(支援者)向けの配信要否判定
+            // 震度別ロールの配信設定
+            // intensityTableを参照して、通知済み最大震度がしきい値以上であるロールを追加
+            // config.settings.intensityRoleIdsを参照
+            for (const intensity of Object.keys(this.intensityTable)) {
+                if (this.intensityTable[intensity] <= this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]) {
+                    const roleId = config.settings.intensityRoleIds[intensity];
+                    if (roleId && !roleIdsForPhoto.includes(roleId)) {
+                        roleIdsForPhoto.push(roleId);
+                    }
+                }
+            }
+            // 警報のみロールの配信設定
+            if (data.alertflg === "警報") {
+                const warningOnlyRoleId = config.settings.warningOnlyRoleId;
+                if (warningOnlyRoleId && !roleIdsForPhoto.includes(warningOnlyRoleId)) {
+                    roleIdsForPhoto.push(warningOnlyRoleId);
+                }
+            }
+
+            this.logger.debug(loggerPrefix + "画像付き配信ロールID: " + roleIdsForPhoto);
+
+            let duplicateDelete = true;
+            if (roleIdsForPhoto && roleIdsForPhoto.length > 0) {
+                await this.callback(config.settings.sendTitle, sendMsg, notice, roleIdsForPhoto, imageId, duplicateDelete);
+                duplicateDelete = false;
+            }
+            if (roleIds && roleIds.length > 0) {
+                await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null, duplicateDelete);
+            }
+        }
+
     }
 
     // 旧データの削除処理
@@ -314,7 +655,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         });
         router.post("/api/v1/testDataInput", (req, res) => {
             const data = req.body;
-            data.body.body.isTraining = true;
+            data.body.status = "試験";
             data.body.body.earthquake.hypocenter.name = "[試験データ]" + data.body.body.earthquake.hypocenter.name;
             this.SendData(data.body, false);
             res.json({

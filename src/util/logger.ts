@@ -1,3 +1,5 @@
+export type LogLevel = "info" | "debug" | "warn" | "error";
+
 export class Logger {
     
     private levelPriority = {
@@ -5,11 +7,10 @@ export class Logger {
     }
 
     private sender;
-    private level: "info" | "debug" | "warn" | "error" = "info";
+    public static level: LogLevel = "info";
 
-    constructor(sender, level: "info" | "debug" | "warn" | "error" = "info") {
+    constructor(sender, level: LogLevel = "info") {
         this.sender = sender;
-        this.level = level;
     }
 
     public info(obj) {
@@ -29,7 +30,7 @@ export class Logger {
     }
     
     public log(level, obj) {
-        if (this.levelPriority[this.level] > this.levelPriority[level]) return;
+        if (this.levelPriority[Logger.level] > this.levelPriority[level]) return;
         let sender = this.sender;
         let nowTime = new Date().toLocaleDateString("ja-JP", {year: "numeric",month: "2-digit",
         day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit"});

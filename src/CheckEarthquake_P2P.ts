@@ -3,12 +3,8 @@ import { clearInterval } from "timers";
 import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
 import rndstr from "rndstr";
+import { Config } from "./config";
 const WebSocket = require("ws");
-const { parse } = require("jsonc-parser");
-const config = (() => {
-    const json = fs.readFileSync("./config/config.json");
-    return parse(json.toString());
-})();
 
 export class CheckEarthquake_P2P extends CheckEarthquake {
 
@@ -52,7 +48,8 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
             console.log("test");
         },
         554: (inputData) => { // 緊急地震速報検出
-            this.callback(config.EEWDetectData.Title, config.EEWDetectData.Body, config.EEWDetectData.Popup);
+            const config = Config.get();
+            this.callback(config.P2P.EEWDetectData.Title, config.P2P.EEWDetectData.Body, config.P2P.EEWDetectData.Popup);
         },
         556: (inputData) => { // EEW
             let data = {
@@ -132,6 +129,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         return this.recvIds.indexOf(id) !== -1;
     }
     public connect() {
+        const config = Config.get();
         if (this.connection != null && this.connection.readyState == 1) this.connection.close();
         this.retryCount++;
         this.isReconnect = true;
@@ -165,6 +163,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         this.connection.addEventListener("error", console.error);
     }
     public Start() {
+        const config = Config.get();
         if (this.intensityTable[config.settings.noticeIntensity] !== undefined) {
             this.noticeIntensity = this.intensityTable[config.settings.noticeIntensity];
         }
@@ -180,6 +179,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
     }
     // データ処理 試験データもここに来るので...
     public DataProcess(data) {
+        const config = Config.get();
         if (this.checkPostId(data.id)) return;
         this.registPostId(data.id);
         const func = this.func[data.code];
@@ -209,6 +209,7 @@ export class CheckEarthquake_P2P extends CheckEarthquake {
         // }
     }
     public SendData(data) {
+        const config = Config.get();
         const origin_time = data.origin_time.replaceAll(/([0-9]{4})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})([0-9]{2})/g, "$1年$2月$3日 $4:$5:$6");
         let sendMsg = config.settings.sendMsg;
         sendMsg = sendMsg.replaceAll("${isTraining}", data.is_training ? "--訓練-- " : "");

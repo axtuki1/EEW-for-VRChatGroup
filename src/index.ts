@@ -6,17 +6,13 @@ import * as OTPAuth from "otpauth";
 import { CheckEarthquake } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
 import { CheckEarthquake_DMDATA } from "./CheckEarthquake_DMDATA";
+import { Config } from "./config";
 const { parse } = require("jsonc-parser");
-const config = (() => {
-    const json = fs.readFileSync("./config/config.json");
-    return parse(json.toString());
-})();
+const config = Config.get();
 const bodyParser = require('body-parser');
-const port = process.env.PORT || config.serverPort || 36578;
 const TestDataPort = process.env.PORT || config.TestDataPort || 36579;
-const wsPort = process.env.PORT || config.websocketPort || 3000;
 const package_json = require('../package.json');
-const isProxy = Boolean(process.env.IS_PROXY) || config.isPorxy || false;
+const isProxy = Boolean(process.env.IS_PROXY) || false;
 const express = require('express');
 const app = express();
 let server = null;
@@ -42,6 +38,8 @@ if (!fs.existsSync("secret")) {
 
 let isLogin = false;
 let authCookie = "", twoFactorAuth = "", userData = {};
+
+Logger.level = config.logLevel;
 
 const DEBUGLOG = (sender, value) => {
     if (!config.debug) return;
@@ -173,7 +171,7 @@ const PostRemove = async (postId) => {
         }
     }
     logger.info("PostRemoving...");
-    return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts/"+postId, {
+    return await fetch("https://api.vrchat.cloud/api/1/groups/" + config.groupId + "/posts/" + postId, {
         method: "DELETE",
         headers: {
             "Content-Type": "application/json",
@@ -194,7 +192,7 @@ const PostRemove = async (postId) => {
     });
 }
 
-const Notice = async (title, body, isNotice = false, roleIds) => {
+const Notice = async (title, body, isNotice = false, roleIds = [], imageId = null) => {
     let logger = new Logger("API:Notice");
     if (!isLogin) {
         logger.info("ReLogin");
@@ -215,7 +213,7 @@ const Notice = async (title, body, isNotice = false, roleIds) => {
         body: JSON.stringify({
             text: body,
             title: title,
-            imageId: null,
+            imageId,
             sendNotification: isNotice,
             roleIds: roleIds,
             visibility: "group"
@@ -233,20 +231,141 @@ const Notice = async (title, body, isNotice = false, roleIds) => {
     });
 }
 
-const UpdatePost = async (title, body, isNotice = false, roleIds = []) => {
-    const alllist = GetPostList();
-    const list = await alllist;
-    try {
-        if (config.debug) console.log(list);
-        if (list != null) list["posts"].filter((post) => post.title == title).forEach(async post => {
-            await PostRemove(post.id);
-        });
-    } catch (e) {
-        console.log(e);
-        console.log("GetPostList: ");
-        console.log(list);
+const UpdatePost = async (title, body, isNotice = false, roleIds = [], imageId = null, duplicateDelete = true) => {
+    if (duplicateDelete) {
+        const alllist = GetPostList();
+        const list = await alllist;
+        try {
+            if (config.debug) console.log(list);
+            if (list != null) list["posts"].filter((post) => post.title == title).forEach(async post => {
+                await PostRemove(post.id);
+            });
+        } catch (e) {
+            console.log(e);
+            console.log("GetPostList: ");
+            console.log(list);
+        }
     }
-    Notice(title, body, isNotice, roleIds);
+    Notice(title, body, isNotice, roleIds, imageId);
+}
+
+const ImageList = async () => {
+    let logger = new Logger("API:ImageList");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return;
+        }
+    }
+    logger.info("GetImageList....");
+    return await fetch("https://api.vrchat.cloud/api/1/files?tag=gallery&n=100", {
+        method: "GET",
+        headers: {
+            "User-Agent": userAgent,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+        }
+    }).then((r) => {
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        logger.info(e);
+    });
+}
+
+const ImageRemove = async (imageId) => {
+    let logger = new Logger("API:ImageRemove");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return;
+        }
+    }
+    logger.info("Image Removing...");
+    return await fetch("https://api.vrchat.cloud/api/1/file/" + imageId, {
+        method: "DELETE",
+        headers: {
+            "User-Agent": userAgent,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+        }
+    }).then((r) => {
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        logger.info(e);
+    });
+}
+
+const ImagePost = async (imagebuffer: Buffer) => {
+    let logger = new Logger("API:ImagePost");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return null;
+        }
+    }
+    logger.info("Image Posting....");
+
+    const formData = new FormData();
+
+    formData.append("file", new Blob([new Uint8Array(imagebuffer)], {
+        type: "image/png"
+    }), "image.png");
+    formData.append("tag", "gallery");
+
+    return await fetch("https://api.vrchat.cloud/api/1/file/image", {
+        method: "POST",
+        headers: {
+            "User-Agent": userAgent,
+            Cookie: "apiKey=" + config.apiKey + "; auth=" + authCookie + "; twoFactorAuth=" + twoFactorAuth,
+        },
+        body: formData
+    }).then((r) => {
+        if (config.debug) logger.info("[" + r.status + "] " + r.statusText);
+        if (r.status == 200) {
+            return r.json();
+        }
+    }).catch((e) => {
+        isLogin = false;
+        logger.info(e);
+    });
+}
+
+const ImageReplace = async (imagebuffer: Buffer, oldImageId: string | null = undefined) => {
+    let logger = new Logger("API:ImageReplace");
+    if (!isLogin) {
+        logger.info("ReLogin");
+        await Login();
+        if (!isLogin) {
+            logger.info("Cancel");
+            return null;
+        }
+    }
+    logger.info("Image Replacing....");
+    if (oldImageId === null) {
+        // 特に何もしない
+    } else if (oldImageId === undefined) {
+        const imageList = await ImageList();
+        if (imageList && imageList.length > 0) {
+            for (const element of imageList) {
+                await ImageRemove(element.id);
+            }
+        }
+    } else {
+        await ImageRemove(oldImageId);
+    }
+    return await ImagePost(imagebuffer);
 }
 
 const Main = async () => {
@@ -302,7 +421,7 @@ const Main = async () => {
     if (config.DataSource == "P2P") {
         timer = new CheckEarthquake_P2P(UpdatePost);
     } else if (config.DataSource == "DMDATA") {
-        timer = new CheckEarthquake_DMDATA(UpdatePost);
+        timer = new CheckEarthquake_DMDATA(UpdatePost, ImageReplace);
     } else {
         timer = new CheckEarthquake_Kmoni(UpdatePost);
     }
