@@ -49,7 +49,7 @@ export class Config {
         UpdateReason: boolean;
         defaultRoleId: string;
         intensityRoleIds: {
-            [intensity: string]: string;
+            [intensity: string]: string | string[]; // 強震モニタの震度に対応したロールID。複数指定する場合は配列で。
         },
         warningOnlyRoleId: string;
         

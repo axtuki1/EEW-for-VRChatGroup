@@ -599,9 +599,17 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             // config.settings.intensityRoleIdsを参照
             for (const intensity of Object.keys(this.intensityTable)) {
                 if (this.intensityTable[intensity] <= this.intensityTable[this.knownData[xmlData.eventId].maxNotifiedIntensity]) {
-                    const roleId = config.settings.intensityRoleIds[intensity];
-                    if (roleId && !roleIdsForPhoto.includes(roleId)) {
-                        roleIdsForPhoto.push(roleId);
+                    const roleIds = config.settings.intensityRoleIds[intensity];
+                    if (Array.isArray(roleIds)) {
+                        roleIds.forEach(roleId => {
+                            if (roleId && !roleIdsForPhoto.includes(roleId)) {
+                                roleIdsForPhoto.push(roleId);
+                            }
+                        });
+                    } else {
+                        if (roleIds && !roleIdsForPhoto.includes(roleIds)) {
+                            roleIdsForPhoto.push(roleIds);
+                        }
                     }
                 }
             }
