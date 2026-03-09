@@ -565,10 +565,10 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                 data.is_final ? "最終報" : "第" + data.report_num + "報"
             )
         );
-        sendMsg = sendMsg.replaceAll("${region_name}", data.region_name);
-        sendMsg = sendMsg.replaceAll("${intensity}", data.calcintensity);
-        sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude);
-        sendMsg = sendMsg.replaceAll("${depth}", data.depth);
+        sendMsg = sendMsg.replaceAll("${region_name}", data.region_name ? data.region_name : "不明");
+        sendMsg = sendMsg.replaceAll("${intensity}", data.calcintensity ? data.calcintensity : "不明");
+        sendMsg = sendMsg.replaceAll("${magunitude}", data.magunitude ? data.magunitude : "不明");
+        sendMsg = sendMsg.replaceAll("${depth}", data.depth ? data.depth : "不明");
         sendMsg = sendMsg.replaceAll("${origin_time}", origin_time);
 
 
