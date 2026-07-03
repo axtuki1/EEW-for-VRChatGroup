@@ -3,7 +3,11 @@
         "target":"ES2021",
         "sourceMap": false,
         "module": "CommonJS",
-        "outDir": "./build/"
+        "rootDir": "./src",
+        "outDir": "./build/",
+        "strictNullChecks": false,
+        "noImplicitAny": false,
+        "useUnknownInCatchVariables": false
     },
     "exclude": ["**/*.test.ts"]
 }
