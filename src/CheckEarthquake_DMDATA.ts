@@ -22,6 +22,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     private dmdata: DMDATA;
     private isReconnect = true;
     public intensityTable = {
+        undefined: "不明",
         "不明": 1,
         "0": 2,
         "1": 3,
@@ -38,6 +39,7 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     public noticeIntensity = 6;
     public noticeIntensityForSupporter = 5;
     public intensityNameMaster = {
+        undefined: "不明",
         "不明": "不明",
         "0": "0",
         "1": "1",
@@ -536,11 +538,18 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
             alertflg: xmlData.body.isWarning ? "警報" : "予報", // 緊急地震速報（警報）発報時に"警報"
             report_num: xmlData.serialNo,
             region_name: xmlData.body.earthquake.hypocenter.name,
-            calcintensity: this.intensityNameMaster[newintensity] + (isOver ? "以上" : ""),
+            calcintensity: "",
             magunitude: xmlData.body.earthquake.magnitude.value ? xmlData.body.earthquake.magnitude.value : "不明",
             depth: xmlData.body.earthquake.hypocenter.depth.value + xmlData.body.earthquake.hypocenter.depth.unit,
             origin_time: xmlData.body.earthquake.originTime
         };
+
+        if (newintensity === undefined || this.intensityNameMaster[newintensity] === undefined) {
+            data.calcintensity = "不明";
+        } else {
+            data.calcintensity = this.intensityNameMaster[newintensity] + (isOver ? "以上" : "");
+        }
+
         const origin_time_obj = new Date(xmlData.body.earthquake.originTime);
         const origin_time_year = origin_time_obj.getFullYear();
         const origin_time_month = (origin_time_obj.getMonth() + 1).toString().padStart(2, "0");
