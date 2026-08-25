@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import { clearInterval } from "timers";
-import { CheckEarthquake } from "./CheckEarthquake";
+import { CheckEarthquake, MetricsData } from "./CheckEarthquake";
 import { Logger } from "./util/logger";
 import rndstr from "rndstr";
 import { DMDATA } from "./dmdata/DMDATA";
@@ -59,6 +59,8 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
     private geoMap: GeoMap = new GeoMap();
     private previousImageId: string = null;
 
+    private metricsData: MetricsData;
+
     private tsunamiAlert_VTSE41: TsunamiAlert_VTSE41;
 
     private func = {
@@ -98,6 +100,25 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
         if (fs.existsSync("secret/previousImageId.txt")) {
             this.previousImageId = fs.readFileSync("secret/previousImageId.txt", "utf-8").trim();
         }
+        this.metricsData = {
+            eew_notifications_total: {
+                free: 0,
+                supporter: 0
+            },
+            eew_events_total: {
+                intensity_1: 0,
+                intensity_2: 0,
+                intensity_3: 0,
+                intensity_4: 0,
+                intensity_5_lower: 0,
+                intensity_5_upper: 0,
+                intensity_6_lower: 0,
+                intensity_6_upper: 0,
+                intensity_7: 0,
+                intensity_unknown: 0
+            },
+            process_start_unixTime: Math.floor(Date.now() / 1000)
+        };
     }
 
     public Start() {
@@ -634,14 +655,25 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
 
             let duplicateDelete = true;
             if (roleIdsForPhoto && roleIdsForPhoto.length > 0) {
+                this.metricsData.eew_notifications_total.supporter++;
                 await this.callback(config.settings.sendTitle, sendMsg, notice, roleIdsForPhoto, imageId, duplicateDelete);
                 duplicateDelete = false;
             }
             if (roleIds && roleIds.length > 0) {
+                this.metricsData.eew_notifications_total.free++;
                 await this.callback(config.settings.sendTitle, sendMsg, notice, roleIds, null, duplicateDelete);
             }
         }
-
+        // metricsの更新
+        if (data.is_final) {
+            let maxNotifiedIntensity = newintensity;
+            if (newintensity === undefined || newintensity === "不明") {
+                maxNotifiedIntensity = "unknown";
+            } else {
+                maxNotifiedIntensity = maxNotifiedIntensity.replace("+", "_upper").replace("-", "_lower");
+            }
+            this.metricsData.eew_events_total["intensity_" + maxNotifiedIntensity]++;
+        }
     }
 
     // 旧データの削除処理
@@ -705,6 +737,39 @@ export class CheckEarthquake_DMDATA extends CheckEarthquake {
                     this.SendData(data.data);
                 }
             });
+        });
+        router.get("/metrics", (req, res) => {
+            res.setHeader("Content-Type", "text/plain");
+            let metrics = "";
+            const description = {
+                eew_notifications_total: {
+                    help: "緊急地震速報の配信回数",
+                    type: "counter",
+                    labelKey: "tier"
+                },
+                eew_events_total: {
+                    help: "緊急地震速報の配信回数(最終報)",
+                    type: "counter",
+                    labelKey: "intensity"
+                },
+                process_start_unixTime: {
+                    help: "プロセス開始時刻(UnixTime)",
+                    type: "gauge"
+                }
+            };
+            for (const [key, value] of Object.entries(this.metricsData)) {
+                metrics += `# HELP ${key} ${description[key].help}\n`;
+                metrics += `# TYPE ${key} ${description[key].type}\n`;
+                if (typeof value === "object") {
+                    for (const [subKey, subValue] of Object.entries(value)) {
+                        metrics += `${key}{${description[key].labelKey}="${subKey}"} ${subValue}\n`;
+                    }
+                } else {
+                    metrics += `${key} ${value}\n`;
+                }
+                metrics += "\n";
+            }
+            res.send(metrics);
         });
     }
 
